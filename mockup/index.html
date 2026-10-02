@@ -95,7 +95,7 @@ section { scroll-margin-top: 70px; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; min-width: 0; }
 .sec-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-block: 36px 12px; }
 .sec-head p { max-width: 70ch; color: var(--muted); margin-top: 4px; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .seg button { border: 0; background: none; padding: 6px 12px; cursor: pointer; font-size: 13px; }
 .seg button + button { border-left: 1px solid var(--line); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
@@ -182,6 +182,11 @@ tbody tr.sel td { background: var(--accent-soft); }
 .driver { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .driver:last-child { border-bottom: 0; }
 
+/* transactions */
+.tx { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); gap: 16px; }
+.tx-facts { display: grid; gap: 14px; align-content: start; }
+.txtable td.txdesc { white-space: normal; min-width: 260px; }
+
 /* bio */
 .bio-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
 .viewer { background: var(--surface-2); border-radius: 8px; border: 1px solid var(--line); }
@@ -199,7 +204,7 @@ tbody tr.sel td { background: var(--accent-soft); }
 footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; gap: 6px; max-width: 90ch; }
 
 @media (max-width: 960px) {
-  .verdict, .arsenal, .lab, .context, .bio-grid, .trend { grid-template-columns: minmax(0, 1fr); }
+  .verdict, .arsenal, .lab, .context, .bio-grid, .trend, .tx { grid-template-columns: minmax(0, 1fr); }
   .reg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
@@ -230,7 +235,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
     <span class="badge" :class="live ? 'live' : 'off'" :title="live ? 'Bio and results from MLB Stats API' : 'MLB Stats API unreachable from this viewer'">{{ live ? 'Live MLB data' : 'Offline demo data' }}</span>
     <span class="badge warn" title="Every grade, pitch metric, heatmap, projection and biomechanic is generated for this mockup. Only bio and season stats are real.">Grades &amp; pitch data are mock</span>
     <nav class="nav" aria-label="Sections">
-      <a href="#summary">Summary</a><a href="#arsenal">Arsenal</a><a href="#lab">Pitch Lab</a><a href="#locations">Locations</a><a href="#context">Results vs. model</a><a href="#biomech">Biomechanics</a><a href="#models">Models</a>
+      <a href="#summary">Summary</a><a href="#arsenal">Arsenal</a><a href="#lab">Pitch Lab</a><a href="#locations">Locations</a><a href="#context">Results vs. model</a><a href="#transactions">Transactions</a><a href="#biomech">Biomechanics</a><a href="#models">Models</a>
     </nav>
   </div>
 </header>
@@ -539,6 +544,57 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   </div>
 </section>
 
+<!-- ========== TRANSACTIONS ========== -->
+<section id="transactions">
+  <div class="sec-head">
+    <div><h2>Availability &amp; transactions<span class="tag" :class="live ? 'real' : 'mock'" :title="live ? 'From the MLB Stats API' : 'Synthetic demo pitcher'">{{ live ? 'Real' : 'Mock' }}</span></h2>
+      <p>Injured list history, roster moves, and acquisitions. Check this before reading a grade change or planning a pitch change.</p></div>
+    <div class="seg" role="group" aria-label="Transaction type">
+      <button v-for="f in TX_FILTERS" :key="f.key" :aria-pressed="txFilter === f.key" @click="txFilter = f.key">{{ f.label }} <span class="muted mono small">{{ txCounts[f.key] }}</span></button>
+    </div>
+  </div>
+  <div class="tx">
+    <div class="panel tx-facts">
+      <div class="callout" v-if="txSummary.onIL" style="margin-bottom:4px"><b>On the injured list</b><span>{{ txSummary.onIL.text }}</span></div>
+      <div class="stat"><div class="eyebrow">IL stints, last 3 seasons</div><div class="v">{{ txSummary.stints3 }}</div></div>
+      <div class="stat"><div class="eyebrow">Days on IL, last 3 seasons</div><div class="v">{{ txSummary.days3 }}</div></div>
+      <div class="stat"><div class="eyebrow">Seasons with an option</div><div class="v">{{ txSummary.optionSeasons.length }}</div><div class="small muted">{{ txSummary.optionSeasons.join(', ') || 'None on record' }}. Count only; check with baseball ops for options remaining.</div></div>
+      <div class="stat"><div class="eyebrow">Teams on record</div><div class="v">{{ txSummary.orgs }}</div></div>
+      <div class="stat" v-if="txSummary.lastIL"><div class="eyebrow">Most recent IL stint</div><div class="small">{{ txSummary.lastIL }}</div></div>
+    </div>
+    <div class="panel" style="min-width:0">
+      <h3>Timeline</h3>
+      <p class="small muted">Bars are IL stints. Dots are other transactions. Hover for details.</p>
+      <svg v-if="txTimeline.years.length" viewBox="0 0 640 110" role="img" aria-label="Transaction timeline" style="width:100%;height:auto;margin-top:8px">
+        <g v-for="y in txTimeline.years" :key="y.y">
+          <line :x1="y.x" :x2="y.x" y1="8" y2="86" stroke="var(--line)"></line>
+          <text :x="y.x + 4" y="100">{{ y.y }}</text>
+        </g>
+        <text x="4" y="30">IL</text><text x="4" y="66">Moves</text>
+        <rect v-for="(st, i) in txTimeline.stints" :key="'s' + i" :x="st.x" y="18" :width="st.w" height="16" rx="3" fill="var(--warn)" opacity=".85"><title>{{ st.title }}</title></rect>
+        <circle v-for="(e, i) in txTimeline.events" :key="'e' + i" :cx="e.x" cy="60" r="5" :fill="e.color" stroke="var(--surface)" stroke-width="1.5"><title>{{ e.title }}</title></circle>
+      </svg>
+      <div class="legend" style="margin-top:4px">
+        <span v-for="c in TX_CATS" :key="c.key"><i :style="{ background: c.color, height: '8px', width: '8px', borderRadius: '50%' }"></i>{{ c.label }}</span>
+      </div>
+      <div class="tablewrap" style="margin-top:12px">
+        <table class="txtable">
+          <thead><tr><th>Date</th><th>Type</th><th>Transaction</th></tr></thead>
+          <tbody>
+            <tr v-for="t in txShown" :key="t.key" style="cursor:default">
+              <td class="num">{{ t.date }}</td>
+              <td><span class="pt"><i :style="{ background: t.cat.color }"></i>{{ t.cat.label }}</span></td>
+              <td class="txdesc">{{ t.description }}</td>
+            </tr>
+            <tr v-if="!txShown.length" style="cursor:default"><td colspan="3" class="muted">No transactions of this type on record.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="btn" style="margin-top:10px" v-if="txFiltered.length > 8" @click="txAll = !txAll">{{ txAll ? 'Show recent 8' : 'Show all ' + txFiltered.length }}</button>
+    </div>
+  </div>
+</section>
+
 <!-- ========== BIOMECHANICS ========== -->
 <section id="biomech">
   <div class="sec-head">
@@ -648,7 +704,7 @@ const mlb = {
     try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
     finally { clearTimeout(to); }
   },
-  person: id => mlb.json(`${API}/people/${id}?hydrate=currentTeam,stats(group=[pitching],type=[yearByYear],sportId=1)`),
+  person: id => mlb.json(`${API}/people/${id}?hydrate=currentTeam,transactions,stats(group=[pitching],type=[yearByYear],sportId=1)`),
   teams: s => mlb.json(`${API}/teams?sportId=1&season=${s}`),
   roster: (t, s, type) => mlb.json(`${API}/teams/${t}/roster?rosterType=${type}&season=${s}&hydrate=person(stats(type=[season],group=[pitching],season=${s}))`),
 };
@@ -717,6 +773,30 @@ function locValue(code, same, count, x, z) {
   return clamp(v, 20, 80);
 }
 
+/* ---------------- Transactions ---------------- */
+const TX_CATS = [
+  { key: 'injury', label: 'Injury', color: 'var(--warn)', re: /injured list|disabled list|rehab assignment/i },
+  { key: 'trade', label: 'Trade', color: '#8C5BB8', re: /\btrade|traded\b/i },
+  { key: 'acq', label: 'Signing / claim', color: 'var(--ok)', re: /signed|drafted|claimed|purchased|selected .*rule 5/i },
+  { key: 'roster', label: 'Roster move', color: 'var(--accent)', re: /optioned|recalled|designated|outright|released|selected the contract|assigned|returned|reinstated|elected free agency/i },
+  { key: 'other', label: 'Other', color: 'var(--muted)', re: /./ },
+];
+const TX_FILTERS = [{ key: 'all', label: 'All' }, ...TX_CATS.filter(c => c.key !== 'other').map(c => ({ key: c.key, label: c.label }))];
+const txCat = d => TX_CATS.find(c => c.re.test(d || '')) || TX_CATS[TX_CATS.length - 1];
+const DEMO_TX = [ // synthetic demo pitcher only
+  ['2021-07-12', 'Synthetic Club drafted Demo LHP in the 1st round.'],
+  ['2023-05-02', 'Synthetic Club selected the contract of LHP Demo LHP from Triple-A.'],
+  ['2023-06-18', 'Synthetic Club optioned LHP Demo LHP to Triple-A.'],
+  ['2023-07-04', 'Synthetic Club recalled LHP Demo LHP from Triple-A.'],
+  ['2024-06-10', 'Synthetic Club placed LHP Demo LHP on the 15-day injured list. Left shoulder inflammation.'],
+  ['2024-07-02', 'Synthetic Club activated LHP Demo LHP from the 15-day injured list.'],
+  ['2025-03-24', 'Synthetic Club optioned LHP Demo LHP to Triple-A.'],
+  ['2025-04-09', 'Synthetic Club recalled LHP Demo LHP from Triple-A.'],
+  ['2025-12-05', 'Synthetic Club traded LHP Demo LHP to Example Club.'],
+  ['2026-08-14', 'Example Club placed LHP Demo LHP on the 15-day injured list. Left middle finger blister.'],
+  ['2026-08-30', 'Example Club activated LHP Demo LHP from the 15-day injured list.'],
+].map(([date, description], i) => ({ id: i, date, description, fromTeam: null, toTeam: null }));
+
 /* ---------------- Biomechanics stand-in ---------------- */
 const PHASES = ['Leg lift', 'Foot strike', 'Max ER', 'Release', 'Follow-through'];
 const J = ['head', 'neck', 'sh', 'el', 'wr', 'gsh', 'gel', 'gwr', 'hip', 'bkn', 'ban', 'fkn', 'fan'];
@@ -745,6 +825,7 @@ createApp({
     const season = ref(SEASON);
     const p = reactive({ id: 0, name: 'Demo LHP', team: 'Synthetic data', throws: 'L', role: 'Starter', age: null, height: null, armAngle: 41, extension: 6.6 });
     const resultsRaw = ref([]);
+    const txRaw = ref([]), txFilter = ref('all'), txAll = ref(false);
     const selected = ref('CH');
     const bats = ref('R');
     const heatMode = ref('model');
@@ -1018,6 +1099,50 @@ createApp({
       return `The ${x.name.toLowerCase()} is most valuable ${where} against ${same ? 'same' : 'opposite'}-side hitters. His average location sits about ${Math.round(miss)} inches from that spot${dirZ ? ', missing ' + dirZ : ''}. When he is behind, the value of the edges drops and the middle of the zone costs the most.`;
     });
 
+    /* ---------- transactions ---------- */
+    const DAY = 864e5;
+    const txList = computed(() => txRaw.value
+      .filter(t => t.date && t.description)
+      .map((t, i) => ({ key: (t.id ?? i) + t.date, date: t.date.slice(0, 10), t: Date.parse(t.date.slice(0, 10)), description: t.description, cat: txCat(t.description), teams: [t.fromTeam?.name, t.toTeam?.name].filter(Boolean) }))
+      .sort((a, b) => a.t - b.t));
+    // Pair "placed on ... injured list" with the next "activated/reinstated from ... injured list".
+    const ilStints = computed(() => {
+      const out = []; let open = null;
+      for (const t of txList.value) {
+        const d = t.description;
+        if (/placed .* on the .*(injured|disabled) list/i.test(d)) { if (!open) open = { start: t.t, startDate: t.date, desc: d }; }
+        else if (open && /(activated|reinstated|returned) .* from the .*(injured|disabled) list/i.test(d)) { out.push({ ...open, end: t.t, endDate: t.date }); open = null; }
+      }
+      if (open) out.push({ ...open, end: null, endDate: null });
+      return out.map(s => ({ ...s, days: Math.round(((s.end ?? Date.now()) - s.start) / DAY), detail: (s.desc.match(/injured list\.?\s*(.*)$/i) || [])[1] || '' }));
+    });
+    const txCounts = computed(() => { const c = { all: txList.value.length }; for (const k of TX_CATS) c[k.key] = txList.value.filter(t => t.cat.key === k.key).length; return c; });
+    const txFiltered = computed(() => txList.value.filter(t => txFilter.value === 'all' || t.cat.key === txFilter.value).slice().reverse());
+    const txShown = computed(() => txAll.value ? txFiltered.value : txFiltered.value.slice(0, 8));
+    const fmtDate = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const txSummary = computed(() => {
+      const since = new Date().getFullYear() - 2, recent = ilStints.value.filter(s => +s.startDate.slice(0, 4) >= since);
+      const open = ilStints.value.find(s => !s.end && Date.now() - s.start < 365 * DAY);
+      const last = ilStints.value[ilStints.value.length - 1];
+      const optionSeasons = [...new Set(txList.value.filter(t => /\boptioned\b/i.test(t.description)).map(t => t.date.slice(0, 4)))];
+      const orgs = new Set(txList.value.flatMap(t => t.teams).filter(n => /^[A-Z]/.test(n || ''))).size;
+      return {
+        stints3: recent.length, days3: recent.reduce((s, x) => s + x.days, 0), optionSeasons,
+        orgs: orgs || '—',
+        onIL: open ? { text: `Since ${fmtDate(open.startDate)} (${open.days} days). ${open.detail}` } : null,
+        lastIL: last ? `${fmtDate(last.startDate)}${last.endDate ? ' to ' + fmtDate(last.endDate) : ', still open'} · ${last.days} days. ${last.detail}` : '',
+      };
+    });
+    const txTimeline = computed(() => {
+      const L = txList.value; if (!L.length) return { years: [], stints: [], events: [] };
+      const y0 = Math.max(new Date(L[0].t).getFullYear(), new Date().getFullYear() - 5), t0 = Date.UTC(y0, 0, 1), t1 = Date.UTC(new Date().getFullYear() + 1, 0, 1);
+      const X = t => 50 + clamp((t - t0) / (t1 - t0), 0, 1) * 580;
+      const years = []; for (let y = y0; y <= new Date().getFullYear(); y++) years.push({ y, x: X(Date.UTC(y, 0, 1)) });
+      const stints = ilStints.value.filter(s => (s.end ?? Date.now()) >= t0).map(s => ({ x: X(s.start), w: Math.max(4, X(s.end ?? Date.now()) - X(s.start)), title: `${fmtDate(s.startDate)}: ${s.days} days. ${s.detail}` }));
+      const events = L.filter(t => t.t >= t0 && t.cat.key !== 'injury').map(t => ({ x: X(t.t), color: t.cat.color, title: `${fmtDate(t.date)}: ${t.description}` }));
+      return { years, stints, events };
+    });
+
     /* ---------- biomechanics ---------- */
     const bioColor = computed(() => byCode(bioCode.value).color);
     const phaseName = computed(() => PHASES[Math.round(phase.value)]);
@@ -1064,6 +1189,7 @@ createApp({
           const k = +s.season, st = s.stat, o = bySeason[k] || (bySeason[k] = { season: k, ip: 0, er: 0, k: 0, bb: 0, hr: 0, hbp: 0, bf: 0 });
           o.ip += ipNum(st.inningsPitched || 0); o.er += +st.earnedRuns || 0; o.k += +st.strikeOuts || 0; o.bb += +st.baseOnBalls || 0; o.hr += +st.homeRuns || 0; o.hbp += +st.hitByPitch || 0; o.bf += +st.battersFaced || 0;
         }
+        txRaw.value = per.transactions || [];
         resultsRaw.value = Object.values(bySeason).sort((a, b) => a.season - b.season).map(o => ({ ...o, era: o.ip ? o.er * 9 / o.ip : 0, ipText: Math.floor(o.ip) + '.' + Math.round((o.ip % 1) * 3) }));
         Object.assign(p, { id, name: per.fullName, team: per.currentTeam?.name || 'MLB', throws: per.pitchHand?.code || 'R', age: per.currentAge, height: per.height, role: (resultsRaw.value.at(-1)?.ip || 0) > 90 ? 'Starter' : 'Pitcher' });
         shotOk.value = true; live.value = true;
@@ -1073,6 +1199,7 @@ createApp({
     function setDemo() {
       live.value = false;
       Object.assign(p, { id: 0, name: 'Demo LHP', team: 'Synthetic data', throws: 'L', role: 'Starter', age: 27, height: '6\' 2"' });
+      txRaw.value = DEMO_TX;
       resultsRaw.value = DEMO_RESULTS.map(r => ({ ...r, ip: ipNum(r.ip), ipText: String(r.ip) }));
       bats.value = 'R';
     }
@@ -1130,6 +1257,7 @@ createApp({
       selected, bats, heatMode, arsenal, totalPitches, selPitch, overall, headlineModels, months, trend, gx, gy,
       results, eraTicks, ex, ey, adjusted, drivers, bottomLine,
       labCode, labPitch, preset, labDelta, sliders, lab, presetsFor, presetDeltaText, setLab, resetLab, applyPreset, labCanvas, heatRefs, locRead,
+      TX_CATS, TX_FILTERS, txFilter, txAll, txCounts, txFiltered, txShown, txSummary, txTimeline,
       bioCode, bioColor, phase, phaseName, playing, togglePlay, skeletons, bioRows, bioTell, registryCards,
       show, gStyle, gradeBg, gradeInk, barW, pct, signed, roleFor, go, loadPitcher,
       mx: h => 30 + (h + 24) / 48 * 260, my: v => 270 - (v + 22) / 48 * 260 };

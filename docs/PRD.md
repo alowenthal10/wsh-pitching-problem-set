@@ -50,6 +50,7 @@ The page is opinionated. The decision-driving number (the Pitching grade on the 
 | Baseball Sciences: integrate skeletal viewer with pitch comparison | **Adopt as embed** | 3 (slot in 1) | BPE provides the slot, pitch selection, and a release-metrics comparison table. Baseball Sciences ships the viewer as a web component (§6.6). We do not rebuild their viewer. |
 | "Like Baseball Savant, but better" | **Interpret** | 1–2 | Savant describes. This page recommends. Concretely: grades instead of percentiles, a written bottom line, small-multiple heatmaps by count, reliability on every number, and one pitch selection that drives the whole page. |
 | Losing context on habitual over/under-performers | **Adopt** | 2 | A "Results vs. model" section shows multi-season expected vs. actual ERA, a results-adjusted grade (credibility-weighted), and candidate traits the models don't capture. |
+| (Added) Baseball ops: player transaction log | **Adopt** | 1 | Injury history changes how a grade change reads and whether a pitch change is safe to try. Roster moves (options, recalls, DFAs) are daily ops work. It is also fully real data, from the MLB Stats API `transactions` hydration. |
 | Extensible to unknown future models | **Adopt** | 1 | Model registry, long-format outputs table, and a generic grade component (§6.2). Proof point: a new model ships with no new Vue components. |
 
 ## 4. Users and key questions
@@ -118,14 +119,26 @@ Priority: **P0** = required for launch, **P1** = launch if possible, **P2** = la
 | R-3 | Show a **results-adjusted Pitching grade** that credits part of the gap, weighted by innings and consistency. R&D owns the formula. The mockup uses a placeholder. | P1 |
 | R-4 | List candidate traits outside the pitch models (extension and perceived velocity, VAA, tunneling, times through the order, tipping risk), each graded. Each is a registry slot for a future model. | P1 |
 
-### 5.6 Biomechanics
+### 5.6 Availability and transactions
+| ID | Requirement | Priority |
+|---|---|---|
+| T-1 | Log of every transaction for the pitcher, newest first, with date, category, and description. Filter by category: injury, trade, signing/claim, roster move. | P0 |
+| T-2 | Pair each IL placement with its activation (counting 15→60-day transfers as one stint) to show stints and days missed over the last 3 seasons. | P0 |
+| T-3 | Flag an open IL stint at the top of the section, with the injury description. | P0 |
+| T-4 | Timeline showing IL stints as bars and other moves as points. | P1 |
+| T-5 | Options remaining and service time, from the club's internal roster system. The public feed only supports counting seasons with an option, which is not the same thing. | P1 |
+| T-6 | Shade IL stints on the monthly grade trend so drops before or after injuries are visible. | P2 |
+
+*Acceptance:* IL day counts match the club's internal injury records for five named pitchers.
+
+### 5.7 Biomechanics
 | ID | Requirement | Priority |
 |---|---|---|
 | B-1 | Slot that mounts the Baseball Sciences viewer with two pitch IDs (four-seam vs. comparison pitch) and a delivery phase. | P0 (Phase 3) |
 | B-2 | Release-metric comparison table (arm angle, release height and side, extension, trunk rotation) with thresholds that flag a possible tell. | P1 |
 | B-3 | The viewer and the page share state: picking a pitch on the page updates the viewer, and scrubbing the viewer updates the phase label. | P1 |
 
-### 5.7 Platform
+### 5.8 Platform
 | ID | Requirement | Priority |
 |---|---|---|
 | X-1 | Model registry drives all model displays (§6.2). | P0 |
@@ -234,7 +247,7 @@ Bottom-line items are generated server-side by a small rules engine (`PitcherSum
 
 ### 6.5 Front-end components (Vue)
 
-`PitcherPage` → `SummaryBand`, `ArsenalTable`, `MovementPlot`, `PitchLab`, `LocationSurfaces`, `ResultsVsModel`, `BiomechSlot`, `ModelFooter`. The shared pieces are `GradeChip`, `GradeScale` (legend), and `ReliabilityBadge`. A Pinia store holds the selected pitcher, season, pitch, and batter side. Every section reads from it.
+`PitcherPage` → `SummaryBand`, `ArsenalTable`, `MovementPlot`, `PitchLab`, `LocationSurfaces`, `ResultsVsModel`, `TransactionLog`, `BiomechSlot`, `ModelFooter`. The shared pieces are `GradeChip`, `GradeScale` (legend), and `ReliabilityBadge`. A Pinia store holds the selected pitcher, season, pitch, and batter side. Every section reads from it.
 
 The mockup's single-file Vue app maps one-to-one to these components. Its `MODELS` object is the registry. Its arsenal, overall, and trend computations are the parts that move to Rails.
 
@@ -253,7 +266,7 @@ Delivered as a custom element so it can mount in Vue without coupling to our bui
 ### 6.7 Data sources
 
 - **Internal pitch tracking** (Statcast or Hawk-Eye tables already owned by Systems): pitch characteristics, locations, counts, results.
-- **MLB Stats API** (`statsapi.mlb.com/api/v1`): bio, roster, and season lines (`people/{id}?hydrate=stats(group=[pitching],type=[yearByYear])`, `teams?sportId=1`, `teams/120/roster?rosterType=active`). Headshots from `midfield.mlbstatic.com/v1/people/{id}/spots/{size}`. Team marks from `mlbstatic.com/team-logos`. Game video (`dapi.cms.mlbinfra.com`) is a P2 for pitch-level clips. The mockup calls these from the browser. In production, Rails calls them server-side on a schedule and caches the results, so the page has no runtime dependency on MLB's uptime.
+- **MLB Stats API** (`statsapi.mlb.com/api/v1`): bio, transactions, roster, and season lines (`people/{id}?hydrate=transactions,stats(group=[pitching],type=[yearByYear])`, `teams?sportId=1`, `teams/120/roster?rosterType=active`). Headshots from `midfield.mlbstatic.com/v1/people/{id}/spots/{size}`. Team marks from `mlbstatic.com/team-logos`. Game video (`dapi.cms.mlbinfra.com`) is a P2 for pitch-level clips. The mockup calls these from the browser. In production, Rails calls them server-side on a schedule and caches the results, so the page has no runtime dependency on MLB's uptime.
 
 ## 7. Handoffs and responsibilities
 

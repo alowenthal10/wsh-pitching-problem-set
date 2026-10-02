@@ -27,5 +27,6 @@ The page loads Vue 3 and fonts from public CDNs. Bio, roster, and season results
 - **Pitch Lab:** grip presets and sliders projecting Stuff-grade changes, shown on a Stuff surface with an achievable-shape envelope.
 - **Locations:** Location-model surfaces by count (Ahead, Even, Behind), with the pitcher's actual location contours, plus a raw-binned toggle for comparison.
 - **Results vs. model:** expected vs. actual ERA by season, a persistent over/under-performer flag, and traits the models don't capture.
+- **Availability & transactions:** real IL history (stints and days missed), options, recalls, trades, and signings, with a timeline and a filterable log.
 - **Biomechanics:** slot for the Baseball Sciences skeletal viewer, with a release-metrics comparison against the four-seam.
 - **Models on this page:** the registry that renders every grade, including planned and open slots.

@@ -28,7 +28,7 @@
 ## Real data (added after the first draft)
 After the mockup was hosted, I replaced the mock Stuff layer with real data and an open-source model:
 - **tjStuff+** by Thomas Nestico (MIT License) is the Stuff model. A GitHub Action downloads the season's Statcast pitches from Baseball Savant, scores each pitch exactly as the tjStuff+ notebook does, and publishes one small file per pitcher.
-- Savant names its columns differently from the MLB Gameday feed the model was trained on. The release position at 50 ft isn't in Savant's export, so the pipeline recovers it exactly from the trajectory fit. A validation mode recomputes 2024 and compares against the published tjStuff+ leaderboard.
+- Savant names its columns differently from the MLB Gameday feed the model was trained on. The release position at 50 ft isn't in Savant's export, so the pipeline recovers it exactly from the trajectory fit. A validation mode recomputes 2024 and compares against the published tjStuff+ leaderboard: r = 0.999 with a mean absolute difference of 0.08 points across 562 pitchers.
 - Pitch Lab runs the real model in the browser. Sliders re-score a sample of the pitcher's actual pitches. Changing the fastball re-scores every pitch, since the model grades secondaries against the fastball.
 - Location and Pitching grades are still mock until I build those models (the next step), and the page tags every mock element.
 

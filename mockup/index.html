@@ -1079,7 +1079,9 @@ createApp({
         out.push({ id: 'comp', name: `Shape of the best ${x.name.toLowerCase()}s`, note: `Average shape of the top quarter of ${x.name.toLowerCase()}s by tjStuff+, from pitchers with ${from} (${comp.n} pitchers).`,
           d: capD({ velo: isFb ? 0 : d.fastball.speed + comp.speed_diff - x.velo, ivb: comp.ivb - x.ivb, hb: comp.hb - x.hb }) });
       }
-      const L = D.ssw[c], his = P.release?.ssw_dev;
+      // Seam-shifted wake is well established for sinkers, changeups, and splitters. On gyro-heavy pitches
+      // (cutters, sliders) the 2-D spin axis doesn't predict movement, so no seam preset is offered.
+      const L = ['SI', 'CH', 'FS', 'FO'].includes(c) ? D.ssw[c] : null, his = P.release?.ssw_dev;
       if (L && his != null) {
         const target = L.p50 >= 0 ? L.p75 : L.p25, delta = target - his;
         if (Math.abs(delta) >= 2) {

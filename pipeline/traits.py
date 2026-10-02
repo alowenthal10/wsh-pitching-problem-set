@@ -35,21 +35,27 @@ def add_trait_features(df):
     df["move_angle"] = np.degrees(np.arctan2(hb_arm, df["pfx_z"]))
     df["ssw_dev"] = np.nan
     if "spin_axis" in df and df["spin_axis"].notna().any():
-        fb = df[(df["pitch_type"] == "FF") & df["spin_axis"].notna()]      # four-seamers carry the least seam effect
-        if len(fb) < 1000:
-            fb = df[df["pitch_type"].isin(["FF", "SI", "FC"]) & df["spin_axis"].notna()]
-        raw = np.degrees(np.arctan2(fb["pfx_x"], fb["pfx_z"]))   # catcher-view movement direction
-        best = None
-        for sgn in (1, -1):     # spin_axis = sgn * movement direction + offset; pick the tighter fit
-            d = np.radians(fb["spin_axis"] - sgn * raw)
-            off = np.degrees(np.arctan2(np.sin(d).mean(), np.cos(d).mean()))
-            spread = 1 - np.hypot(np.sin(d).mean(), np.cos(d).mean())
-            if best is None or spread < best[2]:
-                best = (sgn, off, spread)
-        sgn, off, _ = best
-        spin_dir = (df["spin_axis"] - off) / sgn                     # movement direction implied by spin (catcher view)
-        dev_catcher = _wrap(np.degrees(np.arctan2(df["pfx_x"], df["pfx_z"])) - spin_dir)
-        df["ssw_dev"] = hand * dev_catcher                         # mirror to the pitcher's frame
+        # Calibrate separately for each throwing hand, so a hand-dependent axis frame can't bias either side.
+        for h in ("R", "L"):
+            mine = df["p_throws"] == h
+            fb = df[mine & (df["pitch_type"] == "FF") & df["spin_axis"].notna()]   # four-seamers carry the least seam effect
+            if len(fb) < 500:
+                fb = df[mine & df["pitch_type"].isin(["FF", "SI", "FC"]) & df["spin_axis"].notna()]
+            if len(fb) < 50:
+                continue
+            raw = np.degrees(np.arctan2(fb["pfx_x"], fb["pfx_z"]))   # catcher-view movement direction
+            best = None
+            for sgn in (1, -1):     # spin_axis = sgn * movement direction + offset; pick the tighter fit
+                d = np.radians(fb["spin_axis"] - sgn * raw)
+                off = np.degrees(np.arctan2(np.sin(d).mean(), np.cos(d).mean()))
+                spread = 1 - np.hypot(np.sin(d).mean(), np.cos(d).mean())
+                if best is None or spread < best[2]:
+                    best = (sgn, off, spread)
+            sgn, off, _ = best
+            sub = df.loc[mine]
+            spin_dir = (sub["spin_axis"] - off) / sgn                    # movement direction implied by spin (catcher view)
+            dev_catcher = _wrap(np.degrees(np.arctan2(sub["pfx_x"], sub["pfx_z"])) - spin_dir)
+            df.loc[mine, "ssw_dev"] = hand[mine.to_numpy()] * dev_catcher   # mirror to the pitcher's frame
     return df
 
 

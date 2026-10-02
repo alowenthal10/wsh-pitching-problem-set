@@ -251,3 +251,8 @@ a.brand { color: var(--ink); text-decoration: none; }
 .lb .rank { color: var(--muted); font-family: var(--font-data); width: 1%; }
 .empty { padding: 32px; text-align: center; color: var(--muted); }
 @media (max-width: 640px) { .lb-head h1 { font-size: 34px; } .search { max-width: none; } }
+
+/* team spots: club logo on its primary color, in a circle */
+.spot { width: 28px; height: 28px; border-radius: 50%; display: inline-block; vertical-align: middle; background: var(--surface-2); }
+.spot.home { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--g-hi); }
+.spot-inline .spot { width: 20px; height: 20px; margin-right: 6px; position: relative; top: -1px; }

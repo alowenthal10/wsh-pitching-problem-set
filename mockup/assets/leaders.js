@@ -1,7 +1,7 @@
 /* Leaderboard: every qualified pitcher in a season, filterable by team, role, and sample; rows link to player pages. */
 (async () => {
 const { createApp, ref, reactive, computed, watch } = Vue;
-const { HOME_TEAM, gStyle, show, fold, playerHref } = Site;
+const { HOME_TEAM, gStyle, show, fold, playerHref, teamSpot } = Site;
 const QS = new URLSearchParams(location.search);
 const SEASONS = await Site.seasons();
 const MIN_CHOICES = [50, 150, 300, 1000];
@@ -28,7 +28,7 @@ createApp({
     <div>
       <div class="eyebrow">{{ season }} season · MLB</div>
       <h1>Pitching leaders</h1>
-      <p>Every qualified pitcher, graded on the 20–80 scale by the models on the player pages. <span class="team-chip home">WSH</span> Nationals pitchers are highlighted. Select a row to open a pitcher's page.</p>
+      <p>Every qualified pitcher, graded on the 20–80 scale by the models on the player pages. <span class="spot-inline"><img class="spot" :src="teamSpot(HOME_TEAM, 120)" alt="" @error="$event.target.remove()"></span>Nationals pitchers are highlighted. Select a row to open a pitcher's page.</p>
     </div>
   </div>
 
@@ -57,7 +57,7 @@ createApp({
     <p v-if="error" class="empty">{{ error }}</p>
     <table v-else>
       <thead><tr>
-        <th>#</th><th>Pitcher</th><th>Team</th><th>Role</th>
+        <th>#</th><th>Pitcher</th><th class="c">Team</th><th>Role</th>
         <th v-for="c in COLS" :key="c.key" class="sortable" :class="c.grade ? 'c' : 'r'" :title="c.title" :aria-sort="sortKey === c.key ? (sortDesc ? 'descending' : 'ascending') : 'none'" @click="sortBy(c)">{{ c.label }}</th>
         <th class="c" title="His best pitch by Stuff grade (5%+ usage)">Best pitch</th>
       </tr></thead>
@@ -68,7 +68,11 @@ createApp({
             <img :src="'https://midfield.mlbstatic.com/v1/people/' + x.id + '/spots/60'" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
             <div><a :href="href(x)" @click.stop>{{ x.name }}</a><div class="small muted">{{ x.throws === 'L' ? 'LHP' : 'RHP' }}</div></div>
           </div></td>
-          <td><span class="team-chip" :class="{ home: x.team === HOME_TEAM }" :title="x.team_name">{{ x.team || '—' }}</span></td>
+          <td class="c">
+            <img v-if="teamSpot(x.team, x.team_id) && !badSpot[x.team]" class="spot" :class="{ home: x.team === HOME_TEAM }" :src="teamSpot(x.team, x.team_id)"
+                 :alt="x.team_name || x.team" :title="x.team_name || x.team" loading="lazy" @error="badSpot[x.team] = true">
+            <span v-else class="team-chip" :class="{ home: x.team === HOME_TEAM }" :title="x.team_name">{{ x.team || '—' }}</span>
+          </td>
           <td class="small">{{ x.role || '—' }}</td>
           <td v-for="c in COLS" :key="c.key" :class="c.grade ? 'c' : 'r num'">
             <span v-if="c.grade && x[c.key] != null" class="g" :style="gStyle(x[c.key])" :title="String(x[c.key])">{{ show(x[c.key]) }}</span>
@@ -90,6 +94,7 @@ createApp({
     const minN = ref(MIN_CHOICES.includes(+QS.get('min')) ? +QS.get('min') : 300);
     const sortKey = ref(QS.get('sort') || 'pitching_grade'), sortDesc = ref(QS.get('dir') !== 'asc');
     const meta = ref(null), people = ref([]), error = ref('');
+    const badSpot = reactive({});   // teams whose logo failed to load fall back to the abbreviation
     const bySlug = computed(() => new Map(people.value.map(p => [p.id, p])));
 
     async function load() {
@@ -136,7 +141,7 @@ createApp({
     });
 
     return { SEASONS, MIN_CHOICES, COLS, HOME_TEAM, season, team, role, q, minN, sortKey, sortDesc, meta, all, teams, rows, error,
-      sortBy, href, open, gStyle, show };
+      sortBy, href, open, gStyle, show, teamSpot, badSpot };
   },
 }).component('site-search', Site.SiteSearch).mount('#app');
 })();

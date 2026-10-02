@@ -265,7 +265,7 @@ Delivered as a custom element so it can mount in Vue without coupling to our bui
 
 ### 6.7 Prototype data pipeline (built)
 
-The public prototype runs a reduced version of this design with no servers: a GitHub Action downloads Statcast from Baseball Savant, scores it with the open-source tjStuff+ model, writes per-pitcher JSON, and deploys a static site. Pitch Lab evaluates the same model in the browser. In production, the R&D model and Rails API replace these pieces, but the per-pitcher payload shape carries over.
+The public prototype runs a reduced version of this design with no servers: a GitHub Action downloads Statcast from Baseball Savant, scores it with the open-source tjStuff+ model, fits this project's Location model (smoothed run value surfaces, the same shape as `model_surfaces` in §6.2) and Pitching blend, writes per-pitcher JSON, and deploys a static site. Pitch Lab evaluates the same model in the browser. In production, the R&D model and Rails API replace these pieces, but the per-pitcher payload shape carries over.
 
 ### 6.8 Data sources
 

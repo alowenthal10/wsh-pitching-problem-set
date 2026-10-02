@@ -21,11 +21,12 @@ The page loads Vue 3 and fonts from public CDNs. Bio, roster, and season results
 ### What's real
 - **MLB Stats API** (live, in the browser): bio, teams, rosters, transactions, season results.
 - **Statcast + tjStuff+** (built by GitHub Actions): every pitcher's pitch types, usage, velocity, movement, spin, extension, arm angle, whiff%, xwOBA, location spread, and Stuff grades. Scored with [tjStuff+](https://github.com/tnestico/tjstuff_plus) by Thomas Nestico (MIT License). Pitch Lab runs the same model in the browser.
+- **This project's Location and Pitching models** ([`pipeline/location_model.py`](pipeline/location_model.py)), fit on the same Statcast data: Location and Pitching grades, the location heatmaps, and model-expected ERA for the current and previous season.
 
-Still mock, and tagged on the page: Location and Pitching grades, the heatmap value surfaces, grip presets, model-expected ERA, and biomechanics.
+Still mock, and tagged on the page: grip presets, the results-adjusted crediting formula, the unmodeled-traits list, and biomechanics.
 
 ### Data pipeline
-`pipeline/build_stuff.py` downloads the season's Statcast pitches from Baseball Savant (cached by day), scores every pitch with tjStuff+ exactly as its notebook does, and writes one JSON file per pitcher to `mockup/data/stuff/<season>/`. `pipeline/export_model.py` converts the tjStuff+ model to `mockup/model/tjstuff_v3.json` for the browser; `mockup/model/tjstuff.js` evaluates it (checked against Python to within 0.0001 tjStuff+ points).
+`pipeline/location_model.py` builds the Location model (smoothed run value by spot, for each pitch type, count state, and batter side; the smoothing width is chosen out of sample) and the Pitching model (a least-squares blend of Stuff and Location fit to actual run value), and runs a split-half check of both. `pipeline/build_stuff.py` downloads the season's Statcast pitches from Baseball Savant (cached by day), scores every pitch with tjStuff+ exactly as its notebook does, and writes one JSON file per pitcher to `mockup/data/stuff/<season>/`. `pipeline/export_model.py` converts the tjStuff+ model to `mockup/model/tjstuff_v3.json` for the browser; `mockup/model/tjstuff.js` evaluates it (checked against Python to within 0.0001 tjStuff+ points).
 
 `.github/workflows/pages.yml` runs the pipeline daily during the season and on every push, then deploys the site. **Settings → Pages → Source must be set to "GitHub Actions."** Run the workflow manually with **validate** checked to recompute 2024 and compare against Nestico's published 2024 leaderboard. **Result (Oct 2, 2026): r = 0.999 and a mean absolute difference of 0.08 tjStuff+ points across 562 pitchers with 300+ pitches**, so the Savant-based pipeline reproduces the published model.
 

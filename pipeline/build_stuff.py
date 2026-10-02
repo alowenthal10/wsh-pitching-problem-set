@@ -22,6 +22,8 @@ import joblib
 import numpy as np
 import pandas as pd
 
+import location_model as LM
+
 warnings.filterwarnings("ignore")
 
 FEATURES = ["start_speed", "spin_rate", "extension", "az", "ax", "x0", "z0", "speed_diff", "az_diff", "ax_diff"]
@@ -133,15 +135,15 @@ def score(df, model):
     return df, float(mean), float(sd)
 
 
-def grade_scales(df):
-    """Per-pitch-type (and 'All') mean/std used to convert tjStuff+ to 20-80, as in tjStuff+ v3."""
+def grade_scales(df, col="tj"):
+    """Per-pitch-type (and 'All') mean/std used to convert a plus metric to 20-80, as in tjStuff+ v3."""
     out = {}
-    by_type = df.groupby(["pitcher", "pitch_type"])["tj"].agg(["mean", "size"]).reset_index()
+    by_type = df.groupby(["pitcher", "pitch_type"])[col].agg(["mean", "size"]).reset_index()
     by_type = by_type[by_type["size"] >= MIN_TYPE_PITCHES]
     for pt, g in by_type.groupby("pitch_type"):
         lo, hi = g["mean"].quantile(0.001), g["mean"].quantile(0.999)
         out[pt] = {"mean": float(g["mean"].mean()), "std": float((hi - lo) / 6) or 1.0, "n": int(len(g))}
-    allp = df.groupby("pitcher")["tj"].agg(["mean", "size"]).reset_index()
+    allp = df.groupby("pitcher")[col].agg(["mean", "size"]).reset_index()
     allp = allp[allp["size"] >= MIN_TYPE_PITCHES]
     lo, hi = allp["mean"].quantile(0.001), allp["mean"].quantile(0.999)
     out["All"] = {"mean": float(allp["mean"].mean()), "std": float((hi - lo) / 6), "n": int(len(allp))}
@@ -161,7 +163,7 @@ def r(x, d=2):
 def loc_stats(g):
     if len(g) < 5:
         return None
-    x, z = g["plate_x"].to_numpy(), g["plate_z"].to_numpy()
+    x, z = g["plate_x"].to_numpy(), (g["lz"] if "lz" in g else g["plate_z"]).to_numpy()
     rho = float(np.corrcoef(x, z)[0, 1]) if x.std() > 0 and z.std() > 0 else 0.0
     return [r(x.mean(), 3), r(z.mean(), 3), r(x.std(), 3), r(z.std(), 3), r(rho, 3), int(len(g))]
 
@@ -193,7 +195,15 @@ def movement_time(p):
     return float(np.sqrt(t2)) if t2 > 0 else 0.39
 
 
-def pitcher_json(pid, g, scales, rng):
+def model_fields(g, col, sc, pt="All"):
+    if col not in g:
+        return {}
+    v = float(g[col].mean())
+    return {f"{col}_plus": r(v, 1), f"{col}_grade": r(to_grade(v, sc.get(pt) or sc["All"]), 1)}
+
+
+def pitcher_json(pid, g, scales, rng, extra=None):
+    extra = extra or {}
     hand = g["p_throws"].iloc[0]
     sign = -1 if hand == "R" else 1   # arm-side positive horizontal break
     name = g["player_name"].iloc[0]
@@ -225,6 +235,7 @@ def pitcher_json(pid, g, scales, rng):
             "xwoba": xwoba(p),
             "stuff_plus": r(tj, 1),
             "stuff_grade": r(to_grade(tj, sc), 1),
+            **({} if "loc" not in p else {**model_fields(p, "loc", extra["loc"], pt), **model_fields(p, "pitching", extra["pitching"], pt)}),
             "t40": r(movement_time(p), 4),
             "loc": {"all": loc_stats(p), "R": loc_stats(p[p["stand"] == "R"]) if "stand" in p else None,
                     "L": loc_stats(p[p["stand"] == "L"]) if "stand" in p else None},
@@ -235,7 +246,8 @@ def pitcher_json(pid, g, scales, rng):
     mo = pd.to_datetime(g["game_date"]).dt.month.clip(4, 9)
     for m, gm in g.groupby(mo):
         months.append({"m": int(m), "n": int(len(gm)), "stuff_plus": r(gm["tj"].mean(), 1),
-                       "stuff_grade": r(to_grade(gm["tj"].mean(), scales["All"]), 1)})
+                       "stuff_grade": r(to_grade(gm["tj"].mean(), scales["All"]), 1),
+                       **({} if "loc" not in gm else {**model_fields(gm, "loc", extra["loc"]), **model_fields(gm, "pitching", extra["pitching"])})})
     tj_all = float(g["tj"].mean())
     return {
         "id": int(pid), "name": name, "throws": hand, "n": n,
@@ -243,6 +255,12 @@ def pitcher_json(pid, g, scales, rng):
         "extension": r(g["extension"].mean(), 2),
         "fastball": {"type": g["fb_type"].iloc[0], "speed": r(g["fb_speed"].iloc[0], 3), "az": r(g["fb_az"].iloc[0], 3), "ax": r(g["fb_ax"].iloc[0], 3)},
         "stuff_plus": r(tj_all, 1), "stuff_grade": r(to_grade(tj_all, scales["All"]), 1),
+        **({} if "loc" not in g else {
+            **model_fields(g, "loc", extra["loc"]), **model_fields(g, "pitching", extra["pitching"]),
+            # model-expected runs allowed above an average pitcher over the same pitches (positive = worse)
+            "runs_above_avg": r((g["pxrv"] - extra["pxrv_mean"]).sum(), 2),
+            "actual_runs_above_avg": r((g["rv"] - extra["rv_mean"]).sum(), 2) if g["rv"].notna().any() else None,
+        }),
         "months": months, "pitches": pitches,
     }
 
@@ -256,6 +274,26 @@ def build(df, model, season, out_dir, model_meta):
         sys.exit(f"No Statcast rows for {season}")
     df, xmean, xsd = score(df, model)
     scales = grade_scales(df)
+    extra, loc_meta = {}, None
+    if {"delta_run_exp", "description", "balls", "strikes", "stand"} <= set(df.columns):
+        df = LM.add_location_features(df)
+        sigma, sigma_scores = LM.choose_sigma(df)
+        validation = LM.split_half(df, sigma)
+        validation["kernel_choice"] = sigma_scores
+        df, art = LM.apply(df, sigma)
+        extra = {"loc": grade_scales(df, "loc"), "pitching": grade_scales(df, "pitching"),
+                 "pxrv_mean": art["pxrv_mean"], "rv_mean": float(df["rv"].mean())}
+        ld = os.path.join(out_dir, "location", str(season))
+        os.makedirs(ld, exist_ok=True)
+        with open(os.path.join(ld, "surfaces.json"), "w") as f:
+            json.dump(LM.surfaces_json(art), f, separators=(",", ":"))
+        loc_meta = {"scales": extra["loc"], "pitching_scales": extra["pitching"], "blend": art["blend"],
+                    "surface_types": art["surface_types"], "validation": validation}
+        print(f"{season}: location kernel {sigma / 10:.1f} ft (out-of-sample r by width: {sigma_scores})")
+        print(f"{season}: blend rv = {art['blend'][0]:.5f} + {art['blend'][1]:.3f} * stuff_xrv + {art['blend'][2]:.3f} * loc_value")
+        print(f"{season}: split-half validation {json.dumps(validation)}")
+    else:
+        print("Statcast columns for the Location model are missing; building Stuff only")
     rng = np.random.default_rng(season)
     d = os.path.join(out_dir, "stuff", str(season))
     os.makedirs(d, exist_ok=True)
@@ -263,7 +301,7 @@ def build(df, model, season, out_dir, model_meta):
     for pid, g in df.groupby("pitcher"):
         if len(g) < MIN_PITCHES:
             continue
-        pj = pitcher_json(pid, g, scales, rng)
+        pj = pitcher_json(pid, g, scales, rng, extra)
         with open(os.path.join(d, f"{pid}.json"), "w") as f:
             json.dump(pj, f, separators=(",", ":"))
         index.append({"id": pj["id"], "name": pj["name"], "n": pj["n"], "stuff_plus": pj["stuff_plus"]})
@@ -271,7 +309,7 @@ def build(df, model, season, out_dir, model_meta):
         "season": season, "built_at": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "through": str(pd.to_datetime(df["game_date"]).max().date()), "pitches": int(len(df)),
         "source": "Statcast via Baseball Savant (MLB Advanced Media). Non-commercial use.",
-        "model": model_meta, "xrv_mean": xmean, "xrv_sd": xsd, "scales": scales,
+        "model": model_meta, "xrv_mean": xmean, "xrv_sd": xsd, "scales": scales, "location": loc_meta,
         "pitchers": sorted(index, key=lambda x: -x["n"]),
     }
     with open(os.path.join(d, "index.json"), "w") as f:

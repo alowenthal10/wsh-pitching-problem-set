@@ -1,4 +1,4 @@
-# Builds real Stuff data from Statcast with tjStuff+ and deploys the site to GitHub Pages.
+# Builds real Stuff (tjStuff+), Location, and Pitching data from Statcast and deploys the site to GitHub Pages.
 # Settings -> Pages -> Source must be "GitHub Actions".
 name: Build data and deploy site
 
@@ -62,10 +62,13 @@ jobs:
         if: ${{ inputs.validate }}
         run: python pipeline/build_stuff.py --validate --model .tjstuff/model.joblib --reference .tjstuff/reference_2024.csv
 
-      - name: Build Stuff data
-        run: >
-          python pipeline/build_stuff.py --season "${{ inputs.season || '2026' }}" --model .tjstuff/model.joblib
-          --model-source "$TJSTUFF_RAW/$TJSTUFF_SHA/model/lgbm_model_2020_2023.joblib" --out mockup/data
+      - name: Build model data (current and previous season)
+        run: |
+          SEASON="${{ inputs.season || '2026' }}"
+          for S in $((SEASON - 1)) $SEASON; do
+            python pipeline/build_stuff.py --season "$S" --model .tjstuff/model.joblib \
+              --model-source "$TJSTUFF_RAW/$TJSTUFF_SHA/model/lgbm_model_2020_2023.joblib" --out mockup/data
+          done
 
       - uses: actions/configure-pages@v5
 

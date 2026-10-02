@@ -233,7 +233,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       <span>Pitcher Page</span>
     </div>
     <span class="badge" :class="live ? 'live' : 'off'" :title="live ? 'Bio and results from MLB Stats API' : 'MLB Stats API unreachable from this viewer'">{{ live ? 'Live MLB data' : 'Offline demo data' }}</span>
-    <span class="badge warn" :title="realStuff ? 'Stuff grades and pitch data are real (Statcast, tjStuff+). Location and Pitching grades, heatmap values, grip presets, and biomechanics are mock.' : 'Every grade, pitch metric, heatmap, projection and biomechanic is generated for this mockup. Only bio and season stats are real.'">{{ realStuff ? 'Location &amp; Pitching grades are mock' : 'Grades &amp; pitch data are mock' }}</span>
+    <span class="badge warn" :title="tag('badge').t">{{ tag('badge').l }}</span>
     <nav class="nav" aria-label="Sections">
       <a href="#summary">Summary</a><a href="#arsenal">Arsenal</a><a href="#lab">Pitch Lab</a><a href="#locations">Locations</a><a href="#context">Results vs. model</a><a href="#transactions">Transactions</a><a href="#biomech">Biomechanics</a><a href="#models">Models</a>
     </nav>
@@ -254,7 +254,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       <span v-if="p.height">Ht <b>{{ p.height }}</b></span>
       <span>Arm angle <b class="mono">{{ p.armAngle != null ? p.armAngle.toFixed(1) + '°' : '—' }}</b></span>
       <span>Extension <b class="mono">{{ p.extension.toFixed(1) }} ft</b></span>
-      <span>Pitches <b class="mono">{{ totalPitches.toLocaleString() }}</b><span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Statcast data scored with tjStuff+' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Real' : 'Mock' }}</span></span>
+      <span>Pitches <b class="mono">{{ totalPitches.toLocaleString() }}</b><span class="tag" :class="tag('header').c" :title="tag('header').t">{{ tag('header').l }}</span></span>
     </div>
   </div>
   <div class="controls">
@@ -281,7 +281,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="verdict">
     <div class="panel verdict-grades">
       <div class="vg" v-for="(m, i) in headlineModels" :key="m.key">
-        <div class="eyebrow">{{ m.label }} grade<span class="tag" :class="realStuff && m.key === 'stuff' ? 'real' : 'mock'" :title="realStuff && m.key === 'stuff' ? 'Statcast data scored with tjStuff+' : 'Generated for this mockup. Not real data.'">{{ realStuff && m.key === 'stuff' ? 'Real' : 'Mock' }}</span></div>
+        <div class="eyebrow">{{ m.label }} grade<span class="tag" :class="tag('g_' + m.key).c" :title="tag('g_' + m.key).t">{{ tag('g_' + m.key).l }}</span></div>
         <div :class="i === 0 ? 'big' : 'mid'" :style="{ color: gradeInk(overall[m.key].grade) }">{{ show(overall[m.key].grade) }}</div>
         <div class="bar"><i :style="{ width: barW(overall[m.key].grade), background: gradeBg(overall[m.key].grade) }"></i><b></b></div>
         <div v-if="i === 0" class="role">{{ roleFor(overall.pitching.grade) }}</div>
@@ -289,13 +289,13 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       </div>
       <div class="adj">
         <span class="g" :style="gStyle(adjusted.grade)">{{ show(adjusted.grade) }}</span>
-        <p><b>Results-adjusted Pitching grade.</b><span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span> <span class="muted">{{ adjusted.text }}</span></p>
+        <p><b>Results-adjusted Pitching grade.</b><span class="tag" :class="tag('adjusted').c" :title="tag('adjusted').t">{{ tag('adjusted').l }}</span> <span class="muted">{{ adjusted.text }}</span></p>
         <button class="linkbtn" @click="go('context')">See why →</button>
       </div>
     </div>
 
     <div class="panel bottom-line">
-      <div class="eyebrow">Bottom line<span class="tag mock" title="Generated for this mockup. Written from the mock grades.">Mock</span></div>
+      <div class="eyebrow">Bottom line<span class="tag" :class="tag('bottom').c" :title="tag('bottom').t">{{ tag('bottom').l }}</span></div>
       <ol>
         <li v-for="b in bottomLine" :key="b.title">
           <div><b>{{ b.title }}</b><span class="muted">{{ b.body }}</span>
@@ -309,9 +309,9 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="trend">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
-        <h3>Grades by month, {{ SEASON }}<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Stuff line is real; Pitching and Location lines are mock.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Partly mock' : 'Mock' }}</span></h3>
+        <h3>Grades by month, {{ SEASON }}<span class="tag" :class="tag('trend').c" :title="tag('trend').t">{{ tag('trend').l }}</span></h3>
         <div class="legend">
-          <span v-for="m in headlineModels" :key="m.key"><i :style="{ background: m.color }"></i>{{ m.label }}{{ realStuff ? (m.key === 'stuff' ? ' (real)' : ' (mock)') : '' }}</span>
+          <span v-for="m in headlineModels" :key="m.key"><i :style="{ background: m.color }"></i>{{ m.label }}{{ realStuff && !realModels ? (m.key === 'stuff' ? ' (real)' : ' (mock)') : '' }}</span>
         </div>
       </div>
       <svg viewBox="0 0 640 190" role="img" aria-label="Monthly grade trend" style="width:100%;height:auto;margin-top:8px">
@@ -345,7 +345,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== ARSENAL ========== -->
 <section id="arsenal">
   <div class="sec-head">
-    <div><h2>Arsenal<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Pitch types, shape, results, and Stuff grades are real. Pitch and Loc grades are mock.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Partly mock' : 'Mock' }}</span></h2><p>Every pitch graded on the 20–80 scale. Dashed grades have not reached the sample where that model stabilizes. Select a row to drive the rest of the page.</p></div>
+    <div><h2>Arsenal<span class="tag" :class="tag('arsenal').c" :title="tag('arsenal').t">{{ tag('arsenal').l }}</span></h2><p>Every pitch graded on the 20–80 scale. Dashed grades have not reached the sample where that model stabilizes. Select a row to drive the rest of the page.</p></div>
   </div>
   <div class="arsenal">
     <div class="panel tablewrap" style="padding:8px 12px">
@@ -381,7 +381,8 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
         </tbody>
       </table>
       <p class="small muted" style="padding:10px 4px 4px">HB is arm-side positive from the pitcher's view. Hover a grade for the raw "plus" value and sample size. Percentiles are intentionally omitted.</p>
-      <p class="small" style="padding:0 4px 4px" v-if="realStuff"><b>Real:</b> pitch types, usage, shape, whiff, xwOBA, and Stuff grades (Statcast through {{ stuffMeta.through }}, scored with <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a>). <b>Mock:</b> Pitch and Loc grades.</p>
+      <p class="small" style="padding:0 4px 4px" v-if="realModels"><b>All real:</b> Statcast through {{ stuffMeta.through }}. Stuff from <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a>; Loc and Pitch from this project's Location and Pitching models (see Models on this page).</p>
+      <p class="small" style="padding:0 4px 4px" v-else-if="realStuff"><b>Real:</b> pitch types, usage, shape, whiff, xwOBA, and Stuff grades (Statcast through {{ stuffMeta.through }}, scored with <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a>). <b>Mock:</b> Pitch and Loc grades.</p>
       <p class="small muted" style="padding:0 4px 4px" v-else>{{ stuffStatus }}</p>
     </div>
     <div class="panel">
@@ -457,7 +458,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== LOCATIONS ========== -->
 <section id="locations">
   <div class="sec-head">
-    <div><h2>Locations · {{ selPitch.name }}<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Where he throws it (contour lines) is real Statcast data. The color surface is mock until the Location model is built.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Partly mock' : 'Mock' }}</span></h2><p>Catcher's view. Color is the Location model's value for this pitch at each spot, by count. The lines show where he actually throws it (inner 50%, outer 80% of pitches).</p></div>
+    <div><h2>Locations · {{ selPitch.name }}<span class="tag" :class="tag('locations').c" :title="tag('locations').t">{{ tag('locations').l }}</span></h2><p>Catcher's view. Color is the Location model's value for this pitch at each spot, by count. The lines show where he actually throws it (inner 50%, outer 80% of pitches).</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <div class="seg" role="group" aria-label="Pitch">
         <button v-for="x in arsenal" :key="x.code" :aria-pressed="selected === x.code" @click="selected = x.code">{{ x.code }}</button>
@@ -483,7 +484,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       <div class="scale"><span>Worse</span><span class="ramp"></span><span>Better (20–80)</span></div>
       <p class="small muted" style="max-width:70ch">{{ heatMode === 'model'
         ? 'Model surface: the Location model evaluated on a fine grid, then banded into 5-grade steps. No pitch outcomes are averaged, so there is no noise to smooth.'
-        : 'Raw binned: average outcome of the pitches actually thrown in each 3-inch bin. This is the splotchy view the model surface replaces.' }}</p>
+        : (realModels ? 'Raw binned (simulated): his pitch locations with outcomes drawn as noisily as real single pitches, averaged in 3-inch bins. This is the splotchy view the model surface replaces.' : 'Raw binned: average outcome of the pitches actually thrown in each 3-inch bin. This is the splotchy view the model surface replaces.') }}</p>
     </div>
     <p class="small" style="margin-top:10px"><b>Read:</b> {{ locRead }}</p>
   </div>
@@ -492,13 +493,13 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== RESULTS VS MODEL ========== -->
 <section id="context">
   <div class="sec-head">
-    <div><h2>Results vs. model<span class="tag mock" title="Expected ERA, grades and traits are mock. ERA and FIP are real when live data loads.">Partly mock</span></h2><p>Stuff and Location describe pitches. Some pitchers beat or trail those grades year after year. This section keeps that context next to the grades.</p></div>
+    <div><h2>Results vs. model<span class="tag" :class="tag('results').c" :title="tag('results').t">{{ tag('results').l }}</span></h2><p>Stuff and Location describe pitches. Some pitchers beat or trail those grades year after year. This section keeps that context next to the grades.</p></div>
   </div>
   <div class="context">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
         <h3>ERA: model-expected vs. actual</h3>
-        <div class="legend"><span><i style="background:var(--accent)"></i>Pitching-model expected (mock)</span><span><i style="background:var(--g-hi)"></i>Actual ERA{{ live ? ' (real)' : ' (mock)' }}</span><span><i style="background:var(--muted)"></i>FIP</span></div>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Pitching-model expected{{ realModels ? '' : ' (mock)' }}</span><span><i style="background:var(--g-hi)"></i>Actual ERA{{ live ? ' (real)' : ' (mock)' }}</span><span><i style="background:var(--muted)"></i>FIP</span></div>
       </div>
       <svg v-if="results.rows.length" viewBox="0 0 640 230" role="img" aria-label="Expected vs actual ERA by season" style="width:100%;height:auto;margin-top:8px">
         <g v-for="t in eraTicks" :key="t">
@@ -520,7 +521,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       </svg>
       <div class="tablewrap" style="margin-top:8px">
         <table>
-          <thead><tr><th>Season</th><th class="r">IP</th><th class="c">Grade (mock)</th><th class="r">Exp. ERA (mock)</th><th class="r">ERA</th><th class="r">FIP</th><th class="r">ERA − exp.</th></tr></thead>
+          <thead><tr><th>Season</th><th class="r">IP</th><th class="c">Grade{{ realModels ? '' : ' (mock)' }}</th><th class="r">Exp. ERA{{ realModels ? '' : ' (mock)' }}</th><th class="r">ERA</th><th class="r">FIP</th><th class="r">ERA − exp.</th></tr></thead>
           <tbody>
             <tr v-for="r in results.rows" :key="r.season" style="cursor:default">
               <td class="num">{{ r.season }}</td><td class="r num">{{ r.ipText }}</td>
@@ -657,7 +658,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== MODEL REGISTRY ========== -->
 <section id="models">
   <div class="sec-head">
-    <div><h2>Models on this page<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Stuff is tjStuff+ (real, open source). Location and Pitching are placeholders.' : 'Model names, versions and settings are placeholders.'">{{ realStuff ? 'Partly mock' : 'Mock' }}</span></h2><p>Every grade above is rendered from a registry entry. A new model ships by adding an entry and its outputs, then choosing a page slot.</p></div>
+    <div><h2>Models on this page<span class="tag" :class="tag('models').c" :title="tag('models').t">{{ tag('models').l }}</span></h2><p>Every grade above is rendered from a registry entry. A new model ships by adding an entry and its outputs, then choosing a page slot.</p></div>
   </div>
   <div class="reg">
     <div class="panel" v-for="m in registryCards" :key="m.key" :class="{ planned: m.status !== 'live' }">
@@ -673,7 +674,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
     </div>
   </div>
   <footer>
-    <p><b>About this mockup.</b> Bio, rosters, transactions, and season results load live from the MLB Stats API. When this site's data build has run, pitch types, shape, results, location spread, and Stuff grades are real: {{ realStuff ? stuffMeta.season + ' Statcast data (Baseball Savant) through ' + stuffMeta.through + ',' : 'Statcast data (Baseball Savant)' }} scored with <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a> by Thomas Nestico (MIT License), which also runs in your browser for Pitch Lab. Location and Pitching grades, the heatmap value surfaces, grip presets, results-vs-model expectations, and biomechanics are still mock. Data © MLB Advanced Media, used for non-commercial purposes.</p>
+    <p><b>About this mockup.</b> Bio, rosters, transactions, and season results load live from the MLB Stats API. Pitch data comes from Statcast (Baseball Savant), rebuilt daily by a GitHub Action. Stuff grades use <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a> by Thomas Nestico (MIT License), which also runs in your browser for Pitch Lab. Location and Pitching grades, the heatmap surfaces, and model-expected ERA come from this project's own models, fit on the same Statcast data (<a href="https://github.com/alowenthal10/wsh-pitching-problem-set/blob/claude/job-application-problem-312r2h/pipeline/location_model.py" target="_blank" rel="noopener">method and code</a>). Still mock and tagged: grip presets, the results-adjusted formula, the unmodeled-traits list, and biomechanics. Data © MLB Advanced Media, used for non-commercial purposes.</p>
     <p>Grade conversion: grade = 50 + 10 × (plus − 100) ÷ SD, clamped to 20–80 and shown in 5-point steps. SDs are placeholders for the R&amp;D analyst to supply per model and level.</p>
   </footer>
 </section>
@@ -857,6 +858,33 @@ createApp({
     const stuffMeta = ref(null), stuffData = ref(null), stuffStatus = ref('Mock arsenal: real Stuff data has not been built for this site yet.');
     const tj = ref(null);   // tjStuff+ evaluator, loaded on demand
     const realStuff = computed(() => !!(stuffData.value && stuffMeta.value));
+    const realModels = computed(() => realStuff.value && stuffData.value.loc_plus != null && !!stuffMeta.value.location);
+    const locSurf = ref(null);                       // real Location model surfaces (data/location/<season>/surfaces.json)
+    const hist = ref({});                            // {season: pitcher model data} for Results vs. model
+    const lgEra = ref({});                           // {season: league ERA} from the Stats API
+    // One place that decides every Real / Mock tag on the page.
+    const TAG = {
+      real: (t) => ({ c: 'real', l: 'Real', t }), mock: (t) => ({ c: 'mock', l: 'Mock', t: t || 'Generated for this mockup. Not real data.' }),
+      part: (t) => ({ c: 'mock', l: 'Partly mock', t }), place: (t) => ({ c: 'mock', l: 'Placeholder', t }),
+    };
+    function tag(key) {
+      const S = realStuff.value, M = realModels.value;
+      switch (key) {
+        case 'badge': return { t: M ? 'Every grade is real. Grip presets, the results-adjusted formula, unmodeled traits, and biomechanics are still mock.' : S ? 'Stuff grades and pitch data are real (Statcast, tjStuff+). Location and Pitching grades, heatmap values, grip presets, and biomechanics are mock.' : 'Every grade, pitch metric, heatmap, projection and biomechanic is generated for this mockup. Only bio and season stats are real.',
+          l: M ? 'Grip presets & biomechanics are mock' : S ? 'Location & Pitching grades are mock' : 'Grades & pitch data are mock' };
+        case 'header': return S ? TAG.real('Statcast data') : TAG.mock();
+        case 'g_stuff': return S ? TAG.real('tjStuff+ on Statcast') : TAG.mock();
+        case 'g_location': case 'g_pitching': return M ? TAG.real('This project\'s model, fit on Statcast') : TAG.mock();
+        case 'adjusted': return M ? TAG.place('Built from real grades and results, but the crediting formula is a placeholder for R&D to set.') : TAG.mock();
+        case 'bottom': return M ? TAG.real('Written from the real grades') : TAG.mock('Written from the mock grades.');
+        case 'trend': return M ? TAG.real('Monthly grades from Statcast') : S ? TAG.part('Stuff line is real; Pitching and Location lines are mock.') : TAG.mock();
+        case 'arsenal': return M ? TAG.real('Statcast, tjStuff+, and this project\'s Location and Pitching models') : S ? TAG.part('Pitch types, shape, results, and Stuff grades are real. Pitch and Loc grades are mock.') : TAG.mock();
+        case 'locations': return M ? TAG.real('Location model surfaces and his actual locations. The raw-binned view is simulated.') : S ? TAG.part('Where he throws it is real. The color surface is mock until the Location model is built.') : TAG.mock();
+        case 'results': return M ? TAG.part('Expected ERA, grades, ERA, and FIP are real. The unmodeled traits list is mock.') : TAG.part('Expected ERA, grades and traits are mock. ERA and FIP are real when live data loads.');
+        case 'models': return M ? TAG.real('Stuff, Location, and Pitching are working models. The seam model and open slot are concepts.') : S ? TAG.part('Stuff is tjStuff+ (real). Location and Pitching are placeholders.') : TAG.mock('Model names, versions and settings are placeholders.');
+      }
+      return TAG.mock();
+    }
     const heatRefs = {};
     const themeTick = ref(0);
 
@@ -888,13 +916,15 @@ createApp({
     function realArsenal() {
       const d = stuffData.value, r = rng(d.id + 5);
       return d.pitches.map(x => {
-        const location = Math.round(100 + gauss(r) * 4);
-        const pitching = 100 + 0.6 * (x.stuff_grade - 50) / 10 * MODELS.pitching.sd.pitch + 0.4 * (location - 100);
+        const real = x.loc_grade != null;
+        const location = real ? x.loc_plus : Math.round(100 + gauss(r) * 4);
+        const pitching = real ? x.pitching_plus : 100 + 0.6 * (x.stuff_grade - 50) / 10 * MODELS.pitching.sd.pitch + 0.4 * (location - 100);
         return {
           code: x.code, name: (PT[x.code] || [x.name])[0], color: (PT[x.code] || [0, '#7A8AA3'])[1], usage: x.usage, n: x.n,
           velo: x.velo, ivb: x.ivb, hb: x.hb, spin: x.spin, whiff: x.whiff, xwoba: x.xwoba,
-          stuff: x.stuff_plus, location, pitching: Math.round(pitching), real: x,
-          grades: { stuff: x.stuff_grade, location: toGrade(location, MODELS.location.sd.pitch), pitching: toGrade(pitching, MODELS.pitching.sd.pitch) },
+          stuff: x.stuff_plus, location, pitching: real ? pitching : Math.round(pitching), real: x,
+          grades: real ? { stuff: x.stuff_grade, location: x.loc_grade, pitching: x.pitching_grade }
+                       : { stuff: x.stuff_grade, location: toGrade(location, MODELS.location.sd.pitch), pitching: toGrade(pitching, MODELS.pitching.sd.pitch) },
         };
       });
     }
@@ -911,6 +941,10 @@ createApp({
         o[k] = { plus, grade: toGrade(plus, sd), ci: Math.max(1, Math.round(10 * (MODELS[k].stableN / n) ** 0.5 * 1.5)) };
       }
       if (realStuff.value) o.stuff = { plus: stuffData.value.stuff_plus, grade: stuffData.value.stuff_grade, ci: o.stuff.ci };
+      if (realModels.value) {
+        o.location = { plus: stuffData.value.loc_plus, grade: stuffData.value.loc_grade, ci: o.location.ci };
+        o.pitching = { plus: stuffData.value.pitching_plus, grade: stuffData.value.pitching_grade, ci: o.pitching.ci };
+      }
       return o;
     });
     const headlineModels = [MODELS.pitching, MODELS.stuff, MODELS.location];
@@ -923,7 +957,9 @@ createApp({
         const end = overall.value[k].grade; let g = end - 4 + r() * 2; o[k] = [];
         for (let i = 0; i < 6; i++) { g += (end - g) * 0.35 + gauss(r) * (k === 'location' ? 2.4 : 1.4); o[k].push(clamp(i === 5 ? end : g, 25, 75)); }
       }
-      if (realStuff.value) o.stuff = [4, 5, 6, 7, 8, 9].map(m => { const x = stuffData.value.months.find(y => y.m === m); return x && x.n >= 50 ? clamp(x.stuff_grade, 25, 75) : null; });
+      const monthly = (f) => [4, 5, 6, 7, 8, 9].map(m => { const x = stuffData.value.months.find(y => y.m === m); return x && x.n >= 50 && x[f] != null ? clamp(x[f], 25, 75) : null; });
+      if (realStuff.value) o.stuff = monthly('stuff_grade');
+      if (realModels.value) { o.location = monthly('loc_grade'); o.pitching = monthly('pitching_grade'); }
       return o;
     });
     const trendPts = k => trend.value[k].map((g, i) => ({ i, g })).filter(d => d.g != null);
@@ -939,6 +975,15 @@ createApp({
     ];
     const ipNum = s => { const [w, f] = String(s).split('.'); return +w + (+(f || 0)) / 3; };
     const results = computed(() => {
+      if (realModels.value) {   // seasons with model data: expected ERA = league ERA + 9 x model runs above average / IP
+        const rows = resultsRaw.value.filter(r => r.ip >= 20 && hist.value[r.season] && lgEra.value[r.season]).map(r => {
+          const h = hist.value[r.season];
+          const expEra = lgEra.value[r.season] + 9 * h.runs_above_avg / r.ip;
+          const fip = (13 * r.hr + 3 * (r.bb + r.hbp) - 2 * r.k) / r.ip + 3.15;
+          return { ...r, pplus: h.pitching_plus, grade: h.pitching_grade, expEra, fip, ipText: r.ipText || r.ip.toFixed(1) };
+        });
+        return { rows, latest: rows[rows.length - 1] || resultsLatest(), real: true };
+      }
       const rows = resultsRaw.value.filter(r => r.ip >= 20).slice(-5).map((r, i, arr) => {
         const back = arr.length - 1 - i;
         const pplus = overall.value.pitching.plus - back * 0.8 + ((r.season * 7) % 5 - 2) * 0.3;
@@ -948,8 +993,13 @@ createApp({
       });
       return { rows, latest: rows[rows.length - 1] || null };
     });
+    function resultsLatest() {
+      const r = resultsRaw.value.filter(x => x.ip >= 20).at(-1);
+      return r ? { ...r, fip: (13 * r.hr + 3 * (r.bb + r.hbp) - 2 * r.k) / r.ip + 3.15, ipText: r.ipText || r.ip.toFixed(1) } : null;
+    }
     const eraTicks = computed(() => {
       const vals = results.value.rows.flatMap(r => [r.era, r.expEra, r.fip]);
+      if (!vals.length) return [3, 4, 5];
       const lo = Math.floor(Math.min(...vals, 3) * 2) / 2, hi = Math.ceil(Math.max(...vals, 5) * 2) / 2, t = [];
       for (let v = lo; v <= hi + 1e-9; v += 0.5) t.push(v);
       return t;
@@ -1009,7 +1059,7 @@ createApp({
         action: { label: 'Results vs. model', fn: () => go('context') },
       }];
       const wl = a.slice().sort((x, y) => x.grades.location - y.grades.location)[0];
-      if (show(o.location.grade) <= 45) items.splice(2, 0, { title: `Command is the gap: ${show(o.location.grade)} location.`, body: ` Weakest with the ${wl.name.toLowerCase()} (${show(wl.grades.location)}), which he leaves too high against opposite-side hitters.`, action: { label: `See ${wl.code} locations`, fn: () => { selected.value = wl.code; bats.value = p.throws === 'L' ? 'R' : 'L'; go('locations'); } } });
+      if (show(o.location.grade) <= 45) items.splice(2, 0, { title: `Command is the gap: ${show(o.location.grade)} location.`, body: realModels.value ? ` Weakest with the ${wl.name.toLowerCase()} (${show(wl.grades.location)} location).` : ` Weakest with the ${wl.name.toLowerCase()} (${show(wl.grades.location)}), which he leaves too high against opposite-side hitters.`, action: { label: `See ${wl.code} locations`, fn: () => { selected.value = wl.code; bats.value = p.throws === 'L' ? 'R' : 'L'; go('locations'); } } });
       return items.slice(0, 4);
     });
 
@@ -1187,6 +1237,20 @@ createApp({
       if (Math.hypot(bx - ax, by - ay) > 4) ctx.fillText(`projected · ${show(lab.value.grade)}`, bx + 11, by + 16);
     }
 
+    // Location model grade at a spot (pitcher's frame: +x = glove side), bilinear between 0.1-ft cells.
+    function surfVal(code, countKey, same, x, z) {
+      const S = locSurf.value, g = S.grid, t = S.types[S.type_map[code] || 'FF'] || S.types.FF || Object.values(S.types)[0];
+      const a = t[countKey][same ? 'same' : 'opp'];
+      const fx = clamp((x - g.x0) / g.dx, 0, g.nx - 1.001), fz = clamp((z - g.z0) / g.dz, 0, g.nz - 1.001);
+      const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, at = (jj, ii) => a[jj * g.nx + ii];
+      return (1 - u) * (1 - v) * at(j, i) + u * (1 - v) * at(j, i + 1) + (1 - u) * v * at(j + 1, i) + u * v * at(j + 1, i + 1);
+    }
+    // Most valuable spot for this pitch, count, and batter side (pitcher's frame), searched over a plausible area.
+    function bestSpot(code, countKey, same) {
+      let best = null;
+      for (let z = 0.8; z <= 4.2; z += 0.1) for (let x = -1.4; x <= 1.4; x += 0.1) { const g = surfVal(code, countKey, same, x, z); if (!best || g > best.g) best = { x, z, g }; }
+      return best;
+    }
     // Where he throws a pitch: [meanX, meanZ, sdX, sdZ, rho], catcher's view. Real Statcast when loaded.
     function actualLoc(code) {
       const real = byCode(code)?.real?.loc;
@@ -1208,7 +1272,7 @@ createApp({
         const cv = heatRefs[c.key]; if (!cv) continue;
         const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H);
         ctx.fillStyle = T.surface2; ctx.fillRect(0, 0, W, H);
-        const val = (px, pz) => locValue(x.code, same, c, px * mirror, pz);
+        const val = locSurf.value && realModels.value ? (px, pz) => surfVal(x.code, c.key, same, px * mirror, pz) : (px, pz) => locValue(x.code, same, c, px * mirror, pz);
         if (heatMode.value === 'model') {
           const img = ctx.createImageData(W, H), step = 2;
           for (let py = 0; py < H; py += step) for (let px = 0; px < W; px += step) {
@@ -1246,6 +1310,15 @@ createApp({
       }
     }
     const locRead = computed(() => {
+      if (locSurf.value && realModels.value) {
+        const x = selPitch.value, same = bats.value === p.throws, m = p.throws === 'L' ? -1 : 1, a = actualLoc(x.code);
+        const b = bestSpot(x.code, 'even', same), bx = b.x * m;
+        const miss = Math.hypot((a[0] - bx) * 12, (a[1] - b.z) * 12);
+        const dz = a[1] - b.z, dirZ = dz > 0.2 ? 'above' : dz < -0.2 ? 'below' : 'level with';
+        const where = b.z < 1.5 ? 'below the zone' : b.z > 3.5 ? 'above the zone' : b.z > 2.9 ? 'at the top of the zone' : b.z < 2.1 ? 'at the bottom of the zone' : 'at mid height';
+        const side = Math.abs(b.x) < 0.3 ? 'over the middle' : ((b.x > 0) === (true) ? 'to his glove side' : 'to his arm side');
+        return `In even counts the ${x.name.toLowerCase()} grades best ${where}, ${side}, against ${same ? 'same' : 'opposite'}-side hitters. His average location sits about ${Math.round(miss)} inches from that spot, ${dirZ} it. Compare the three counts to see how the value moves when he falls behind.`;
+      }
       const x = selPitch.value, same = bats.value === p.throws, m = p.throws === 'L' ? -1 : 1, t0 = locTarget(x.code)[same ? 'same' : 'opp'], t = [t0[0] * m, t0[1]], a = actualLoc(x.code);
       const miss = Math.hypot((a[0] - t[0]) * 12, (a[1] - t[1]) * 12);
       const dirZ = a[1] > t[1] + 0.2 ? 'up' : a[1] < t[1] - 0.2 ? 'down' : '';
@@ -1330,8 +1403,18 @@ createApp({
     function togglePlay() { playing.value = !playing.value; last = 0; if (playing.value) raf = requestAnimationFrame(tick); else cancelAnimationFrame(raf); }
 
     /* ---------- registry cards ---------- */
+    const GH = 'https://github.com/alowenthal10/wsh-pitching-problem-set/blob/claude/job-application-problem-312r2h/pipeline/location_model.py';
+    function realCard(m) {
+      const L = stuffMeta.value.location, v = L.validation || {}, b = L.blend;
+      if (m.key === 'location') return { ...m, model: 'location_value', version: `fit on ${stuffMeta.value.season} Statcast`, status: 'live · real', url: GH, credit: 'This project · method and code',
+        desc: 'Smoothed run value of each spot, by pitch type, count state, and batter side, relative to an average location in that situation.',
+        note: `Split-half check (${v.pitchers} pitchers): first-half Location vs second-half Location r = ${v.location_reliability}.` };
+      return { ...m, model: 'pitching_blend', version: `fit on ${stuffMeta.value.season} Statcast`, status: 'live · real', url: GH, credit: 'This project · method and code',
+        desc: `Least-squares blend fit to actual run value: ${b[1].toFixed(3)} × Stuff xRV + ${b[2].toFixed(3)} × Location value. Output is in runs, which drives expected ERA.`,
+        note: `Predicting second-half run value per pitch (${v.pitchers} pitchers): Pitching r = ${v.pitching_predicts_2nd_half}, Stuff ${v.stuff_predicts_2nd_half}, Location ${v.location_predicts_2nd_half}, first-half results ${v.actual_run_value_predicts_2nd_half}.` };
+    }
     const registryCards = computed(() => [
-      ...Object.values(MODELS).map(m => m.key === 'stuff' && realStuff.value ? { ...m, model: 'tjstuff_plus', version: stuffMeta.value.model.version, status: 'live · real',
+      ...Object.values(MODELS).map(m => m.key !== 'stuff' && realModels.value ? realCard(m) : m.key === 'stuff' && realStuff.value ? { ...m, model: 'tjstuff_plus', version: stuffMeta.value.model.version, status: 'live · real',
         desc: 'Open-source Stuff model: predicts a pitch\'s expected run value from velocity, spin, extension, movement, release, and differences from his primary fastball.',
         credit: `${stuffMeta.value.model.author} · ${stuffMeta.value.model.license} License`, url: stuffMeta.value.model.url,
         note: `Scored on ${stuffMeta.value.pitches.toLocaleString()} ${stuffMeta.value.season} Statcast pitches through ${stuffMeta.value.through}. Grade = 50 + 10 × (tjStuff+ − pitch-type mean) ÷ spread.` } : m),
@@ -1372,17 +1455,19 @@ createApp({
         const r = await fetch(`data/stuff/${SEASON}/index.json`);
         if (!r.ok) throw new Error(r.status);
         stuffMeta.value = await r.json();
+        if (stuffMeta.value.location) fetch(`data/location/${SEASON}/surfaces.json`).then(r => r.ok ? r.json() : null).then(d => { if (d) locSurf.value = Object.freeze(d); }).catch(() => {});
         fetch('model/tjstuff_v3.json').then(r => r.ok ? r.json() : null).then(m => { if (m && window.TjStuff) tj.value = Object.freeze(new window.TjStuff(m)); }).catch(() => {});
       } catch (e) { stuffMeta.value = null; stuffStatus.value = 'Mock arsenal: real Stuff data has not been built for this site yet.'; }
     }
     async function loadStuff(id) {
-      stuffData.value = null; surfKey = '';
+      stuffData.value = null; surfKey = ''; hist.value = {};
       if (!stuffMeta.value || !id) return;
       try {
         const r = await fetch(`data/stuff/${SEASON}/${id}.json`);
         if (!r.ok) throw new Error(r.status);
         const d = await r.json();
         stuffData.value = Object.freeze(d);
+        loadHistory(id, d);
         Object.assign(p, { armAngle: d.arm_angle, extension: d.extension });
         const lever = d.pitches.filter(x => x.usage >= 0.05).sort((a, b) => a.stuff_grade - b.stuff_grade)[0] || d.pitches[0];
         selected.value = lever.code; setLab(lever.code);
@@ -1390,6 +1475,21 @@ createApp({
       } catch (e) {
         stuffStatus.value = `Mock arsenal: no ${SEASON} Statcast data for this pitcher (fewer than 50 pitches, or not in this build).`;
       }
+    }
+    // Model data for earlier seasons (built by the same pipeline) plus league ERA, for Results vs. model.
+    async function loadHistory(id, current) {
+      const out = { [SEASON]: current };
+      await Promise.all([SEASON - 1, SEASON].map(async (y) => {
+        try {
+          if (y !== SEASON) { const r = await fetch(`data/stuff/${y}/${id}.json`); if (r.ok) out[y] = await r.json(); }
+          if (!lgEra.value[y]) {
+            const t = await mlb.json(`${API}/teams/stats?season=${y}&group=pitching&stats=season&sportId=1`);
+            let er = 0, ip = 0; for (const s of t.stats?.[0]?.splits || []) { er += +s.stat.earnedRuns || 0; ip += ipNum(s.stat.inningsPitched || 0); }
+            if (ip) lgEra.value = { ...lgEra.value, [y]: er * 9 / ip };
+          }
+        } catch (e) { /* season missing: Results vs. model shows the seasons it has */ }
+      }));
+      hist.value = out;
     }
     async function loadTeams() {
       try {
@@ -1425,8 +1525,15 @@ createApp({
     }
 
     const redrawAll = () => nextTick(() => { drawLab(); drawHeat(); });
+    // Keep pitch selections valid when the arsenal changes (e.g. switching to a pitcher without a splitter).
+    watch(arsenal, (a) => {
+      const has = c => a.some(x => x.code === c);
+      if (!has(selected.value)) selected.value = a[0].code;
+      if (!has(labCode.value)) setLab(a[0].code);
+      if (!has(bioCode.value) || bioCode.value === fbCode.value) bioCode.value = (a.find(x => x.code !== fbCode.value) || a[0]).code;
+    }, { flush: 'sync' });
     watch([lab, labCode, arsenal, themeTick, tj], () => nextTick(drawLab));
-    watch([selected, bats, heatMode, arsenal, themeTick, () => p.throws], () => nextTick(drawHeat));
+    watch([selected, bats, heatMode, arsenal, themeTick, locSurf, () => p.throws], () => nextTick(drawHeat));
 
     onMounted(async () => {
       matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => themeTick.value++);
@@ -1449,7 +1556,7 @@ createApp({
       TX_CATS, TX_FILTERS, txFilter, txAll, txCounts, txFiltered, txShown, txSummary, txTimeline,
       bioCode, bioColor, phase, phaseName, playing, togglePlay, skeletons, bioRows, bioTell, registryCards,
       show, gStyle, gradeBg, gradeInk, barW, pct, signed, roleFor, go, loadPitcher,
-      realStuff, stuffMeta, stuffStatus, fbCode, trendPts,
+      realStuff, realModels, stuffMeta, stuffStatus, fbCode, trendPts, tag,
       mx: h => 30 + (h + 24) / 48 * 260, my: v => 270 - (v + 22) / 48 * 260 };
   }
 }).mount('#app');

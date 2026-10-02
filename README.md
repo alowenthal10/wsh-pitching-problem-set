@@ -18,7 +18,18 @@ npx http-server mockup -p 8080   # or: python3 -m http.server -d mockup 8080
 
 The page loads Vue 3 and fonts from public CDNs. Bio, roster, and season results come from the MLB Stats API, called from your browser. If that API can't be reached, the page shows a synthetic demo pitcher instead.
 
-**All Stuff, Location, and Pitching values, pitch shapes, heatmaps, Pitch Lab projections, and biomechanics in the mockup are illustrative.** They are not outputs of any real model.
+### What's real
+- **MLB Stats API** (live, in the browser): bio, teams, rosters, transactions, season results.
+- **Statcast + tjStuff+** (built by GitHub Actions): every pitcher's pitch types, usage, velocity, movement, spin, extension, arm angle, whiff%, xwOBA, location spread, and Stuff grades. Scored with [tjStuff+](https://github.com/tnestico/tjstuff_plus) by Thomas Nestico (MIT License). Pitch Lab runs the same model in the browser.
+
+Still mock, and tagged on the page: Location and Pitching grades, the heatmap value surfaces, grip presets, model-expected ERA, and biomechanics.
+
+### Data pipeline
+`pipeline/build_stuff.py` downloads the season's Statcast pitches from Baseball Savant (cached by day), scores every pitch with tjStuff+ exactly as its notebook does, and writes one JSON file per pitcher to `mockup/data/stuff/<season>/`. `pipeline/export_model.py` converts the tjStuff+ model to `mockup/model/tjstuff_v3.json` for the browser; `mockup/model/tjstuff.js` evaluates it (checked against Python to within 0.0001 tjStuff+ points).
+
+`.github/workflows/pages.yml` runs the pipeline daily during the season and on every push, then deploys the site. **Settings → Pages → Source must be set to "GitHub Actions."** Run the workflow manually with **validate** checked to recompute 2024 and compare against Nestico's published 2024 leaderboard before trusting the numbers.
+
+Data © MLB Advanced Media, used for non-commercial purposes.
 
 ## Page tour
 

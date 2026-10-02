@@ -1,0 +1,2 @@
+exclude: [pipeline, .tjstuff, .statcast-cache, Gemfile, Gemfile.lock, node_modules, vendor]
+include: [mockup/data]

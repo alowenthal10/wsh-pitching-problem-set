@@ -263,7 +263,11 @@ Delivered as a custom element so it can mount in Vue without coupling to our bui
 - Events: `phase-change` (detail: phase), `ready`, `error`.
 - Auth: uses the page's session token. Data comes from Baseball Sciences' own API.
 
-### 6.7 Data sources
+### 6.7 Prototype data pipeline (built)
+
+The public prototype runs a reduced version of this design with no servers: a GitHub Action downloads Statcast from Baseball Savant, scores it with the open-source tjStuff+ model, writes per-pitcher JSON, and deploys a static site. Pitch Lab evaluates the same model in the browser. In production, the R&D model and Rails API replace these pieces, but the per-pitcher payload shape carries over.
+
+### 6.8 Data sources
 
 - **Internal pitch tracking** (Statcast or Hawk-Eye tables already owned by Systems): pitch characteristics, locations, counts, results.
 - **MLB Stats API** (`statsapi.mlb.com/api/v1`): bio, transactions, roster, and season lines (`people/{id}?hydrate=transactions,stats(group=[pitching],type=[yearByYear])`, `teams?sportId=1`, `teams/120/roster?rosterType=active`). Headshots from `midfield.mlbstatic.com/v1/people/{id}/spots/{size}`. Team marks from `mlbstatic.com/team-logos`. Game video (`dapi.cms.mlbinfra.com`) is a P2 for pitch-level clips. The mockup calls these from the browser. In production, Rails calls them server-side on a schedule and caches the results, so the page has no runtime dependency on MLB's uptime.

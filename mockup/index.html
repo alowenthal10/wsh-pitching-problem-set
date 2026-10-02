@@ -233,7 +233,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       <span>Pitcher Page</span>
     </div>
     <span class="badge" :class="live ? 'live' : 'off'" :title="live ? 'Bio and results from MLB Stats API' : 'MLB Stats API unreachable from this viewer'">{{ live ? 'Live MLB data' : 'Offline demo data' }}</span>
-    <span class="badge warn" title="Every grade, pitch metric, heatmap, projection and biomechanic is generated for this mockup. Only bio and season stats are real.">Grades &amp; pitch data are mock</span>
+    <span class="badge warn" :title="realStuff ? 'Stuff grades and pitch data are real (Statcast, tjStuff+). Location and Pitching grades, heatmap values, grip presets, and biomechanics are mock.' : 'Every grade, pitch metric, heatmap, projection and biomechanic is generated for this mockup. Only bio and season stats are real.'">{{ realStuff ? 'Location &amp; Pitching grades are mock' : 'Grades &amp; pitch data are mock' }}</span>
     <nav class="nav" aria-label="Sections">
       <a href="#summary">Summary</a><a href="#arsenal">Arsenal</a><a href="#lab">Pitch Lab</a><a href="#locations">Locations</a><a href="#context">Results vs. model</a><a href="#transactions">Transactions</a><a href="#biomech">Biomechanics</a><a href="#models">Models</a>
     </nav>
@@ -252,9 +252,9 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
     <div class="bio">
       <span v-if="p.age">Age <b>{{ p.age }}</b></span>
       <span v-if="p.height">Ht <b>{{ p.height }}</b></span>
-      <span>Arm angle <b class="mono">{{ p.armAngle }}°</b></span>
+      <span>Arm angle <b class="mono">{{ p.armAngle != null ? p.armAngle.toFixed(1) + '°' : '—' }}</b></span>
       <span>Extension <b class="mono">{{ p.extension.toFixed(1) }} ft</b></span>
-      <span>Pitches <b class="mono">{{ totalPitches.toLocaleString() }}</b><span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></span>
+      <span>Pitches <b class="mono">{{ totalPitches.toLocaleString() }}</b><span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Statcast data scored with tjStuff+' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Real' : 'Mock' }}</span></span>
     </div>
   </div>
   <div class="controls">
@@ -281,7 +281,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="verdict">
     <div class="panel verdict-grades">
       <div class="vg" v-for="(m, i) in headlineModels" :key="m.key">
-        <div class="eyebrow">{{ m.label }} grade<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></div>
+        <div class="eyebrow">{{ m.label }} grade<span class="tag" :class="realStuff && m.key === 'stuff' ? 'real' : 'mock'" :title="realStuff && m.key === 'stuff' ? 'Statcast data scored with tjStuff+' : 'Generated for this mockup. Not real data.'">{{ realStuff && m.key === 'stuff' ? 'Real' : 'Mock' }}</span></div>
         <div :class="i === 0 ? 'big' : 'mid'" :style="{ color: gradeInk(overall[m.key].grade) }">{{ show(overall[m.key].grade) }}</div>
         <div class="bar"><i :style="{ width: barW(overall[m.key].grade), background: gradeBg(overall[m.key].grade) }"></i><b></b></div>
         <div v-if="i === 0" class="role">{{ roleFor(overall.pitching.grade) }}</div>
@@ -309,9 +309,9 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="trend">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
-        <h3>Grades by month, {{ SEASON }}<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h3>
+        <h3>Grades by month, {{ SEASON }}<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Stuff line is real; Pitching and Location lines are mock.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Partly mock' : 'Mock' }}</span></h3>
         <div class="legend">
-          <span v-for="m in headlineModels" :key="m.key"><i :style="{ background: m.color }"></i>{{ m.label }}</span>
+          <span v-for="m in headlineModels" :key="m.key"><i :style="{ background: m.color }"></i>{{ m.label }}{{ realStuff ? (m.key === 'stuff' ? ' (real)' : ' (mock)') : '' }}</span>
         </div>
       </div>
       <svg viewBox="0 0 640 190" role="img" aria-label="Monthly grade trend" style="width:100%;height:auto;margin-top:8px">
@@ -321,8 +321,8 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
         </g>
         <text v-for="(mo, i) in months" :key="mo" :x="gx(i)" y="184" text-anchor="middle">{{ mo }}</text>
         <g v-for="m in headlineModels" :key="m.key">
-          <polyline fill="none" :stroke="m.color" stroke-width="2.5" stroke-linejoin="round" :points="trend[m.key].map((g, i) => gx(i) + ',' + gy(g)).join(' ')"></polyline>
-          <circle v-for="(g, i) in trend[m.key]" :key="i" :cx="gx(i)" :cy="gy(g)" :r="i === months.length - 1 ? 4.5 : 2.5" :fill="m.color"></circle>
+          <polyline fill="none" :stroke="m.color" stroke-width="2.5" stroke-linejoin="round" :points="trendPts(m.key).map(d => gx(d.i) + ',' + gy(d.g)).join(' ')"></polyline>
+          <circle v-for="(d, j) in trendPts(m.key)" :key="j" :cx="gx(d.i)" :cy="gy(d.g)" :r="j === trendPts(m.key).length - 1 ? 4.5 : 2.5" :fill="m.color"></circle>
         </g>
       </svg>
     </div>
@@ -345,7 +345,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== ARSENAL ========== -->
 <section id="arsenal">
   <div class="sec-head">
-    <div><h2>Arsenal<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>Every pitch graded on the 20–80 scale. Dashed grades have not reached the sample where that model stabilizes. Select a row to drive the rest of the page.</p></div>
+    <div><h2>Arsenal<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Pitch types, shape, results, and Stuff grades are real. Pitch and Loc grades are mock.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Partly mock' : 'Mock' }}</span></h2><p>Every pitch graded on the 20–80 scale. Dashed grades have not reached the sample where that model stabilizes. Select a row to drive the rest of the page.</p></div>
   </div>
   <div class="arsenal">
     <div class="panel tablewrap" style="padding:8px 12px">
@@ -375,12 +375,14 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
             <td class="r num">{{ x.ivb.toFixed(1) }}</td>
             <td class="r num">{{ x.hb.toFixed(1) }}</td>
             <td class="r num">{{ x.spin }}</td>
-            <td class="r num">{{ pct(x.whiff) }}</td>
-            <td class="r num">{{ x.xwoba.toFixed(3) }}</td>
+            <td class="r num">{{ x.whiff != null ? pct(x.whiff) : '—' }}</td>
+            <td class="r num">{{ x.xwoba != null ? x.xwoba.toFixed(3) : '—' }}</td>
           </tr>
         </tbody>
       </table>
       <p class="small muted" style="padding:10px 4px 4px">HB is arm-side positive from the pitcher's view. Hover a grade for the raw "plus" value and sample size. Percentiles are intentionally omitted.</p>
+      <p class="small" style="padding:0 4px 4px" v-if="realStuff"><b>Real:</b> pitch types, usage, shape, whiff, xwOBA, and Stuff grades (Statcast through {{ stuffMeta.through }}, scored with <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a>). <b>Mock:</b> Pitch and Loc grades.</p>
+      <p class="small muted" style="padding:0 4px 4px" v-else>{{ stuffStatus }}</p>
     </div>
     <div class="panel">
       <h3>Movement</h3>
@@ -406,7 +408,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== PITCH LAB ========== -->
 <section id="lab">
   <div class="sec-head">
-    <div><h2>Pitch Lab<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>What happens to a pitch's Stuff grade if its shape changes. Grip and seam-orientation presets come from a seam-to-movement model (planned, Baseball Sciences); the sliders query the Stuff model directly.</p></div>
+    <div><h2>Pitch Lab<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Runs tjStuff+ in your browser on a sample of his actual pitches.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Real model' : 'Mock' }}</span></h2><p>{{ realStuff ? 'What happens to a pitch\'s Stuff grade if its shape changes. The sliders re-score a sample of his actual pitches with tjStuff+ in your browser. Grip presets are hand-entered movement changes until a seam-to-movement model exists.' : 'What happens to a pitch\'s Stuff grade if its shape changes. Grip and seam-orientation presets come from a seam-to-movement model (planned, Baseball Sciences); the sliders query the Stuff model directly.' }}</p></div>
     <div class="seg" role="group" aria-label="Pitch">
       <button v-for="x in arsenal" :key="x.code" :aria-pressed="labCode === x.code" @click="setLab(x.code)">{{ x.code }}</button>
     </div>
@@ -414,7 +416,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="lab">
     <div class="panel lab-controls">
       <div>
-        <div class="eyebrow" style="margin-bottom:8px">Grip &amp; seam orientation · {{ labPitch.name }}</div>
+        <div class="eyebrow" style="margin-bottom:8px">Grip &amp; seam orientation · {{ labPitch.name }}<span class="tag mock" title="Hand-entered movement changes, not model output.">Mock presets</span></div>
         <div class="presets">
           <button v-for="pr in presetsFor(labCode)" :key="pr.id" class="preset" :aria-pressed="preset === pr.id" @click="applyPreset(pr)">
             <span class="t"><span>{{ pr.name }}</span><span class="mono small muted">{{ presetDeltaText(pr) }}</span></span>
@@ -434,19 +436,19 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       <div class="result">
         <div><div class="eyebrow">{{ labCode }} Stuff</div>
           <div class="v"><span>{{ show(labPitch.grades.stuff) }}</span><span class="arrow">→</span><span :style="{ color: gradeInk(lab.grade) }">{{ show(lab.grade) }}</span></div>
-          <div class="small muted mono">{{ lab.lo }}–{{ lab.hi }} range</div>
+          <div class="small muted mono" v-if="lab.real">tjStuff+ {{ labPitch.stuff.toFixed(0) }} → {{ lab.plus.toFixed(0) }}</div><div class="small muted mono" v-else>{{ lab.lo }}–{{ lab.hi }} range</div>
         </div>
         <div><div class="eyebrow">Stuff+ change</div><div class="v mono" style="font-size:30px">{{ signed(lab.dPlus, 1) }}</div><div class="small muted">for this pitch</div></div>
-        <div><div class="eyebrow">Overall Pitching</div><div class="v mono" style="font-size:30px">{{ signed(lab.dOverall, 1) }}</div><div class="small muted">grade points, at {{ pct(labPitch.usage) }} usage</div></div>
+        <div><div class="eyebrow">Overall {{ lab.real ? 'Stuff' : 'Pitching' }}</div><div class="v mono" style="font-size:30px">{{ signed(lab.dOverall, 1) }}</div><div class="small muted">grade points{{ lab.fbNote ? ', ' + lab.fbNote : ', at ' + pct(labPitch.usage) + ' usage' }}</div></div>
       </div>
-      <p v-if="lab.outside" class="callout small"><b>Outside his achievable range.</b> This shape is beyond what pitchers with a similar arm angle and spin profile produce. Treat the projection as extrapolation.</p>
+      <p v-if="lab.outside" class="callout small"><b>{{ lab.real ? 'Far outside his own range.' : 'Outside his achievable range.' }}</b> {{ lab.real ? 'This shape is more than 3 standard deviations from anything he threw this season. The model is extrapolating for him, so treat the projection with caution.' : 'This shape is beyond what pitchers with a similar arm angle and spin profile produce. Treat the projection as extrapolation.' }}</p>
     </div>
     <div class="panel">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
         <h3>Stuff grade surface · {{ labPitch.name }} at {{ (labPitch.velo + labDelta.velo).toFixed(1) }} mph</h3>
         <div class="scale"><span>20</span><span class="ramp"></span><span>80</span></div>
       </div>
-      <p class="small muted" style="margin-block:4px 10px">Each band is 5 grade points. Hollow ring = current pitch. Filled dot = projected. Dashed ellipse = shapes achievable for his arm angle and spin.</p>
+      <p class="small muted" style="margin-block:4px 10px">{{ realStuff ? 'tjStuff+ grade for this pitch at each movement, in 1-inch cells and 5-grade bands, holding his other traits fixed. Hollow ring = current. Filled dot = projected. Small dots and dashed ellipse = his actual pitches (2 SD).' : 'Each band is 5 grade points. Hollow ring = current pitch. Filled dot = projected. Dashed ellipse = shapes achievable for his arm angle and spin.' }}</p>
       <div class="canvas-box"><canvas ref="labCanvas" width="640" height="560" aria-label="Stuff grade by movement"></canvas></div>
     </div>
   </div>
@@ -455,7 +457,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== LOCATIONS ========== -->
 <section id="locations">
   <div class="sec-head">
-    <div><h2>Locations · {{ selPitch.name }}<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>Catcher's view. Color is the Location model's value for this pitch at each spot, by count. The lines show where he actually throws it (inner 50%, outer 80% of pitches).</p></div>
+    <div><h2>Locations · {{ selPitch.name }}<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Where he throws it (contour lines) is real Statcast data. The color surface is mock until the Location model is built.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Partly mock' : 'Mock' }}</span></h2><p>Catcher's view. Color is the Location model's value for this pitch at each spot, by count. The lines show where he actually throws it (inner 50%, outer 80% of pitches).</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <div class="seg" role="group" aria-label="Pitch">
         <button v-for="x in arsenal" :key="x.code" :aria-pressed="selected === x.code" @click="selected = x.code">{{ x.code }}</button>
@@ -600,7 +602,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="sec-head">
     <div><h2>Biomechanics · pitch comparison<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>Mount point for the Baseball Sciences skeletal viewer. Their component receives two pitch IDs and the phase to show. This stand-in overlays the four-seam (solid) and the comparison pitch (dashed); arm-angle differences are drawn at 3× for visibility.</p></div>
     <div class="seg" role="group" aria-label="Compare pitch">
-      <button v-for="x in arsenal.filter(a => a.code !== 'FF')" :key="x.code" :aria-pressed="bioCode === x.code" @click="bioCode = x.code">FF vs {{ x.code }}</button>
+      <button v-for="x in arsenal.filter(a => a.code !== fbCode)" :key="x.code" :aria-pressed="bioCode === x.code" @click="bioCode = x.code">{{ fbCode }} vs {{ x.code }}</button>
     </div>
   </div>
   <div class="bio-grid">
@@ -633,11 +635,11 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       <div class="phase-labels"><span v-for="ph in PHASES" :key="ph">{{ ph }}</span></div>
     </div>
     <div class="panel">
-      <h3>FF vs {{ bioCode }} at release</h3>
+      <h3>{{ fbCode }} vs {{ bioCode }} at release</h3>
       <p class="small muted" style="margin-bottom:10px">Differences a hitter could read. Large gaps on a secondary pitch can tip it.</p>
       <div class="tablewrap">
         <table>
-          <thead><tr><th>Metric</th><th class="r">FF</th><th class="r">{{ bioCode }}</th><th class="r">Δ</th></tr></thead>
+          <thead><tr><th>Metric</th><th class="r">{{ fbCode }}</th><th class="r">{{ bioCode }}</th><th class="r">Δ</th></tr></thead>
           <tbody>
             <tr v-for="m in bioRows" :key="m.label" style="cursor:default">
               <td>{{ m.label }}</td><td class="r num">{{ m.a }}</td><td class="r num">{{ m.b }}</td>
@@ -655,21 +657,23 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== MODEL REGISTRY ========== -->
 <section id="models">
   <div class="sec-head">
-    <div><h2>Models on this page<span class="tag mock" title="Generated for this mockup. Model names, versions and settings are placeholders.">Mock</span></h2><p>Every grade above is rendered from a registry entry. A new model ships by adding an entry and its outputs, then choosing a page slot.</p></div>
+    <div><h2>Models on this page<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Stuff is tjStuff+ (real, open source). Location and Pitching are placeholders.' : 'Model names, versions and settings are placeholders.'">{{ realStuff ? 'Partly mock' : 'Mock' }}</span></h2><p>Every grade above is rendered from a registry entry. A new model ships by adding an entry and its outputs, then choosing a page slot.</p></div>
   </div>
   <div class="reg">
     <div class="panel" v-for="m in registryCards" :key="m.key" :class="{ planned: m.status !== 'live' }">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
         <b>{{ m.label }}</b><span class="badge" :class="m.status === 'live' ? 'live' : ''">{{ m.status }}</span>
       </div>
-      <div class="mono small muted">{{ m.model }}<span v-if="m.version"> · v{{ m.version }}</span></div>
+      <div class="mono small muted">{{ m.model }}<span v-if="m.version"> · {{ m.version }}</span></div>
       <p class="small">{{ m.desc }}</p>
-      <div class="small muted" v-if="m.stableN">Stable at ~{{ m.stableN }} pitches · 1 grade step = {{ m.sd.pitch / 2 }} pts (pitch), {{ m.sd.pitcher / 2 }} (pitcher)</div>
+      <div class="small" v-if="m.credit"><a :href="m.url" target="_blank" rel="noopener">{{ m.credit }}</a></div>
+      <div class="small muted" v-if="m.note">{{ m.note }}</div>
+      <div class="small muted" v-else-if="m.stableN">Stable at ~{{ m.stableN }} pitches · 1 grade step = {{ m.sd.pitch / 2 }} pts (pitch), {{ m.sd.pitcher / 2 }} (pitcher)</div>
       <div class="small muted" v-else>Slot: {{ m.slot }}</div>
     </div>
   </div>
   <footer>
-    <p><b>About this mockup.</b> Bio, team, and season results load live from the MLB Stats API in the viewer's browser when it is reachable; otherwise a synthetic demo pitcher is shown. All Stuff, Location, and Pitching values, pitch shapes, heatmaps, Pitch Lab projections, and biomechanics are illustrative and generated for this mockup. They are not outputs of any real model.</p>
+    <p><b>About this mockup.</b> Bio, rosters, transactions, and season results load live from the MLB Stats API. When this site's data build has run, pitch types, shape, results, location spread, and Stuff grades are real: {{ realStuff ? stuffMeta.season + ' Statcast data (Baseball Savant) through ' + stuffMeta.through + ',' : 'Statcast data (Baseball Savant)' }} scored with <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a> by Thomas Nestico (MIT License), which also runs in your browser for Pitch Lab. Location and Pitching grades, the heatmap value surfaces, grip presets, results-vs-model expectations, and biomechanics are still mock. Data © MLB Advanced Media, used for non-commercial purposes.</p>
     <p>Grade conversion: grade = 50 + 10 × (plus − 100) ÷ SD, clamped to 20–80 and shown in 5-point steps. SDs are placeholders for the R&amp;D analyst to supply per model and level.</p>
   </footer>
 </section>
@@ -678,6 +682,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.38/vue.global.prod.min.js"></script>
+<script src="model/tjstuff.js"></script>
 <script>
 (() => {
 const { createApp, reactive, ref, computed, watch, nextTick, onMounted } = Vue;
@@ -748,6 +753,15 @@ const PRESETS = {
         { id: 'split', name: 'Split-change', note: 'Wider fingers; kills spin', d: { velo: -0.8, ivb: -6.5, hb: -2.0 } } ],
 };
 
+/* Statcast pitch types: display names and colors */
+const PT = {
+  FF: ['Four-seam', '#C0182F'], SI: ['Sinker', '#E0702A'], FC: ['Cutter', '#3C9A8E'], SL: ['Slider', '#8C5BB8'], ST: ['Sweeper', '#C25BAA'],
+  SV: ['Slurve', '#6A5ACD'], CU: ['Curveball', '#2D63AE'], KC: ['Knuckle curve', '#1F4E8C'], CS: ['Slow curve', '#5A86C5'],
+  CH: ['Changeup', '#D88A1E'], FS: ['Splitter', '#2E9D8F'], FO: ['Forkball', '#4BAE9A'], SC: ['Screwball', '#B58900'],
+  KN: ['Knuckleball', '#7A8AA3'], EP: ['Eephus', '#7A8AA3'], FA: ['Fastball', '#C0182F'],
+};
+const LOC_ALIAS = { SI: 'SI', ST: 'ST', SV: 'CU', KC: 'CU', CS: 'CU', FS: 'CH', FO: 'CH', SC: 'CH', FA: 'FF', KN: 'CH', EP: 'CU' };
+
 /* Location model stand-in, RHP frame, catcher's view (x ft, +x = 1B side). */
 const LOC_TARGET = { // same = batter on pitcher's side, opp = opposite
   FF: { same: [0.15, 3.4, .75, .45, 24], opp: [-0.1, 3.4, .75, .45, 22] },
@@ -755,7 +769,10 @@ const LOC_TARGET = { // same = batter on pitcher's side, opp = opposite
   SL: { same: [0.85, 1.4, .45, .45, 26], opp: [0.55, 1.2, .45, .45, 18] },
   FC: { same: [0.75, 2.1, .45, .6, 16],  opp: [0.6, 2.4, .45, .6, 20] },
   CH: { same: [-0.6, 1.4, .5, .45, 10],  opp: [-0.7, 1.3, .5, .45, 26] },
+  SI: { same: [-0.65, 1.9, .5, .55, 22], opp: [-0.45, 2.0, .5, .55, 14] },
+  ST: { same: [1.0, 1.5, .45, .45, 28],  opp: [0.7, 1.3, .45, .45, 16] },
 };
+const locTarget = c => LOC_TARGET[c] || LOC_TARGET[LOC_ALIAS[c]] || LOC_TARGET.FF;
 const LOC_ACTUAL = { FF: [0.0, 3.0, .75, .65], CU: [0.25, 1.3, .7, .6], SL: [0.55, 1.6, .65, .6], FC: [0.5, 2.3, .6, .6], CH: [-0.3, 2.05, .7, .7] };
 const COUNTS = [
   { key: 'ahead', label: 'Ahead', desc: '0-1, 0-2, 1-2', ball: 9, chase: 9 },
@@ -763,7 +780,7 @@ const COUNTS = [
   { key: 'behind', label: 'Behind', desc: '1-0, 2-0, 2-1, 3-x', ball: 30, chase: 0 },
 ];
 function locValue(code, same, count, x, z) {
-  const t = LOC_TARGET[code][same ? 'same' : 'opp'];
+  const t = locTarget(code)[same ? 'same' : 'opp'];
   const dx = (x - t[0]) / t[2], dz = (z - t[1]) / t[3];
   let v = 48 + t[4] * Math.exp(-0.5 * (dx * dx + dz * dz));
   v -= 18 * Math.exp(-0.5 * ((x / 0.45) ** 2 + ((z - 2.5) / 0.5) ** 2));
@@ -808,7 +825,8 @@ const KEY = [ // x,y in 0..100 (y up); right-handed frame, moving toward +x
   { head: [77, 58], neck: [72, 54], sh: [72, 56], el: [75, 42], wr: [68, 30], gsh: [66, 52], gel: [60, 46], gwr: [56, 44], hip: [62, 34], bkn: [56, 22], ban: [48, 18], fkn: [70, 20], fan: [70, 0] },
 ];
 const BONES = [['head', 'neck', 3], ['neck', 'hip', 6], ['neck', 'sh'], ['sh', 'el'], ['el', 'wr'], ['neck', 'gsh'], ['gsh', 'gel'], ['gel', 'gwr'], ['hip', 'bkn'], ['bkn', 'ban'], ['hip', 'fkn'], ['fkn', 'fan']];
-const BIO = { // release metrics relative to FF (illustrative)
+const BIO_DEFAULT = { arm: 0.8, relH: 0.05, relS: 0.03, ext: -0.08, trunk: 0.6 };
+const BIO = { // release metrics relative to the primary fastball (illustrative)
   FF: { arm: 0, relH: 0, relS: 0, ext: 0, trunk: 0 },
   CU: { arm: 2.4, relH: 0.12, relS: -0.05, ext: -0.15, trunk: -1.5 },
   SL: { arm: 0.6, relH: 0.03, relS: 0.02, ext: -0.05, trunk: 0.5 },
@@ -836,6 +854,9 @@ createApp({
     const phase = ref(3);
     const playing = ref(false);
     const labCanvas = ref(null);
+    const stuffMeta = ref(null), stuffData = ref(null), stuffStatus = ref('Mock arsenal: real Stuff data has not been built for this site yet.');
+    const tj = ref(null);   // tjStuff+ evaluator, loaded on demand
+    const realStuff = computed(() => !!(stuffData.value && stuffMeta.value));
     const heatRefs = {};
     const themeTick = ref(0);
 
@@ -853,6 +874,7 @@ createApp({
 
     /* ---------- arsenal (illustrative, perturbed per pitcher id) ---------- */
     const arsenal = computed(() => {
+      if (realStuff.value) return realArsenal();
       const r = rng(p.id || 7);
       const jitter = p.id ? 1 : 0;
       return BASE_ARSENAL.map(b => {
@@ -862,6 +884,21 @@ createApp({
         return x;
       });
     });
+    // Real pitch types, shape, results, and tjStuff+ grades. Location and Pitching values stay mock.
+    function realArsenal() {
+      const d = stuffData.value, r = rng(d.id + 5);
+      return d.pitches.map(x => {
+        const location = Math.round(100 + gauss(r) * 4);
+        const pitching = 100 + 0.6 * (x.stuff_grade - 50) / 10 * MODELS.pitching.sd.pitch + 0.4 * (location - 100);
+        return {
+          code: x.code, name: (PT[x.code] || [x.name])[0], color: (PT[x.code] || [0, '#7A8AA3'])[1], usage: x.usage, n: x.n,
+          velo: x.velo, ivb: x.ivb, hb: x.hb, spin: x.spin, whiff: x.whiff, xwoba: x.xwoba,
+          stuff: x.stuff_plus, location, pitching: Math.round(pitching), real: x,
+          grades: { stuff: x.stuff_grade, location: toGrade(location, MODELS.location.sd.pitch), pitching: toGrade(pitching, MODELS.pitching.sd.pitch) },
+        };
+      });
+    }
+    const fbCode = computed(() => stuffData.value?.fastball?.type || 'FF');
     const totalPitches = computed(() => arsenal.value.reduce((s, x) => s + x.n, 0));
     const byCode = c => arsenal.value.find(x => x.code === c);
     const selPitch = computed(() => byCode(selected.value));
@@ -873,6 +910,7 @@ createApp({
         const n = totalPitches.value, sd = MODELS[k].sd.pitcher;
         o[k] = { plus, grade: toGrade(plus, sd), ci: Math.max(1, Math.round(10 * (MODELS[k].stableN / n) ** 0.5 * 1.5)) };
       }
+      if (realStuff.value) o.stuff = { plus: stuffData.value.stuff_plus, grade: stuffData.value.stuff_grade, ci: o.stuff.ci };
       return o;
     });
     const headlineModels = [MODELS.pitching, MODELS.stuff, MODELS.location];
@@ -885,8 +923,10 @@ createApp({
         const end = overall.value[k].grade; let g = end - 4 + r() * 2; o[k] = [];
         for (let i = 0; i < 6; i++) { g += (end - g) * 0.35 + gauss(r) * (k === 'location' ? 2.4 : 1.4); o[k].push(clamp(i === 5 ? end : g, 25, 75)); }
       }
+      if (realStuff.value) o.stuff = [4, 5, 6, 7, 8, 9].map(m => { const x = stuffData.value.months.find(y => y.m === m); return x && x.n >= 50 ? clamp(x.stuff_grade, 25, 75) : null; });
       return o;
     });
+    const trendPts = k => trend.value[k].map((g, i) => ({ i, g })).filter(d => d.g != null);
     const gx = i => 50 + i * (570 / 5);
     const gy = g => 10 + (75 - g) / 50 * 160;
 
@@ -952,15 +992,16 @@ createApp({
     /* ---------- bottom line (opinionated, generated from the data) ---------- */
     const bottomLine = computed(() => {
       const a = [...arsenal.value];
-      const best = a.slice().sort((x, y) => y.grades.pitching - x.grades.pitching).slice(0, 2);
-      const worst = a.slice().sort((x, y) => x.grades.pitching - y.grades.pitching)[0];
+      const key = realStuff.value ? 'stuff' : 'pitching';
+      const best = a.slice().sort((x, y) => y.grades[key] - x.grades[key]).slice(0, 2);
+      const worst = a.filter(x => x.usage >= 0.05).sort((x, y) => x.grades[key] - y.grades[key])[0] || a[a.length - 1];
       const o = overall.value;
       const items = [{
-        title: `${best[0].name} and ${best[1].name.toLowerCase()} carry the profile.`,
-        body: ` Stuff grades of ${show(best[0].grades.stuff)} and ${show(best[1].grades.stuff)}. Together they are ${pct(best[0].usage + best[1].usage)} of his pitches.`,
+        title: best[1] ? `${best[0].name} and ${best[1].name.toLowerCase()} carry the profile.` : `${best[0].name} carries the profile.`,
+        body: best[1] ? ` Stuff grades of ${show(best[0].grades.stuff)} and ${show(best[1].grades.stuff)}. Together they are ${pct(best[0].usage + best[1].usage)} of his pitches.` : ` Stuff grade of ${show(best[0].grades.stuff)}.`,
       }, {
         title: `${worst.name} is the lever: ${show(worst.grades.stuff)} stuff, ${show(worst.grades.location)} location.`,
-        body: ` ${worst.n < MODELS.location.stableN ? 'Location grade is not yet stable. ' : ''}Pitch Lab projects a seam-shifted version near a 50.`,
+        body: realStuff.value ? ` It is ${pct(worst.usage)} of his pitches. Test shape changes on the real model in Pitch Lab.` : ` ${worst.n < MODELS.location.stableN ? 'Location grade is not yet stable. ' : ''}Pitch Lab projects a seam-shifted version near a 50.`,
         action: { label: `Open ${worst.code} in Pitch Lab`, fn: () => { setLab(worst.code); const pr = (PRESETS[worst.code] || [])[1]; if (pr) applyPreset(pr); go('lab'); } },
       }, {
         title: adjusted.value.persistent ? adjusted.value.label + '.' : 'Results match the grades.',
@@ -974,7 +1015,7 @@ createApp({
 
     /* ---------- Pitch Lab ---------- */
     const labPitch = computed(() => byCode(labCode.value));
-    const presetsFor = c => PRESETS[c] || [];
+    const presetsFor = c => PRESETS[c] || [{ id: 'cur', name: 'Current grip', note: 'As thrown', d: { velo: 0, ivb: 0, hb: 0 } }];
     const presetDeltaText = pr => pr.id === 'cur' ? 'as thrown' : `${signed(pr.d.velo, 1)} mph · ${signed(pr.d.ivb, 1)} IVB · ${signed(pr.d.hb, 1)} HB`;
     function setLab(c) { labCode.value = c; resetLab(); }
     function resetLab() { preset.value = 'cur'; labDelta.velo = 0; labDelta.ivb = 0; labDelta.hb = 0; }
@@ -986,7 +1027,52 @@ createApp({
     ];
     const envelope = c => { const x = byCode(c); return { cx: x.hb + (c === 'CH' ? 1 : 0), cy: x.ivb - (c === 'CH' ? 3 : 0), rx: 6.5, ry: 6.5 }; };
     const stuffAt = (c, v, ivb, hb) => { const x = byCode(c), f = ff.value; return x.stuff + stuffF(c, v, ivb, hb, f) - stuffF(c, x.velo, x.ivb, x.hb, f); };
+    /* ---------- real Pitch Lab: tjStuff+ on a sample of his actual pitches ---------- */
+    const G_FT = 32.174;
+    // movement change (in) -> acceleration change (ft/s^2) over Savant's 40-ft movement window
+    const dAcc = (inches, t40) => 2 * (inches / 12) / (t40 * t40);
+    function featRows(rows, d, fb) {
+      // rows: [speed, spin, ext, az, ax_m, x0, z0]; d: per-row deltas; fb: fastball means
+      return rows.map(r => {
+        const sp = r[0] + d.v, az = r[3] + d.az, ax = r[4] + d.ax;
+        return [sp, r[1], r[2], az, ax, r[5], r[6], sp - fb.speed, az - fb.az, Math.abs(ax - fb.ax)];
+      });
+    }
+    const tjOf = (feats) => { const m = stuffMeta.value; let s = 0; for (const f of feats) s += 100 - 10 * (tj.value.xrv(f) - m.xrv_mean) / m.xrv_sd; return s / feats.length; };
+    const ptScale = c => stuffMeta.value.scales[c] || stuffMeta.value.scales.All;
+    const gradeFor = (plus, c) => { const sc = ptScale(c); return clamp(50 + 10 * (plus - sc.mean) / sc.std, 20, 80); };
+    const baseTj = computed(() => {   // sample-based tjStuff+ per type at zero change, for anchoring
+      if (!realStuff.value || !tj.value) return {};
+      const d = stuffData.value, o = {};
+      for (const x of d.pitches) o[x.code] = tjOf(featRows(x.sample, { v: 0, az: 0, ax: 0 }, d.fastball));
+      return o;
+    });
+    function realLab() {
+      const d = stuffData.value, x = labPitch.value, P = x.real, isFb = P.code === d.fastball.type;
+      const dz = dAcc(labDelta.ivb, P.t40), dx = -dAcc(labDelta.hb, P.t40);
+      const delta = { v: labDelta.velo, az: dz, ax: dx };
+      const fb = isFb ? { speed: d.fastball.speed + delta.v, az: d.fastball.az + dz, ax: d.fastball.ax + dx } : d.fastball;
+      let dOverallPlus = 0, plus = x.stuff;
+      for (const q of d.pitches) {
+        if (q.code !== P.code && !isFb) continue;
+        const now = tjOf(featRows(q.sample, q.code === P.code ? delta : { v: 0, az: 0, ax: 0 }, fb));
+        const change = now - baseTj.value[q.code];
+        dOverallPlus += q.usage * change;
+        if (q.code === P.code) plus = q.stuff_plus + change;
+      }
+      const all = stuffMeta.value.scales.All;
+      const dOverall = clamp(50 + 10 * (d.stuff_plus + dOverallPlus - all.mean) / all.std, 20, 80) - d.stuff_grade;
+      const zIvb = labDelta.ivb / Math.max(0.5, P.ivb_sd), zHb = labDelta.hb / Math.max(0.5, P.hb_sd);
+      return { real: true, v: x.velo + labDelta.velo, ivb: x.ivb + labDelta.ivb, hb: x.hb + labDelta.hb, plus, dPlus: plus - x.stuff,
+        grade: gradeFor(plus, P.code), outside: Math.hypot(zIvb, zHb) > 3, dOverall,
+        fbNote: isFb ? 're-scoring every pitch against the new fastball' : '' };
+    }
     const lab = computed(() => {
+      if (realStuff.value) {
+        if (tj.value && labPitch.value?.real) return realLab();
+        const x = labPitch.value;   // model still loading
+        return { real: true, v: x.velo, ivb: x.ivb, hb: x.hb, plus: x.stuff, dPlus: 0, grade: x.grades.stuff, outside: false, dOverall: 0, fbNote: 'loading model' };
+      }
       const x = labPitch.value, v = x.velo + labDelta.velo, ivb = x.ivb + labDelta.ivb, hb = x.hb + labDelta.hb;
       const plus = clamp(stuffAt(x.code, v, ivb, hb), 40, 160);
       const dPlus = plus - x.stuff;
@@ -996,6 +1082,7 @@ createApp({
       const e = envelope(x.code);
       const outside = ((hb - e.cx) / e.rx) ** 2 + ((ivb - e.cy) / e.ry) ** 2 > 1;
       const dOverall = toGrade(overall.value.pitching.plus + x.usage * dPlus * 0.6, MODELS.pitching.sd.pitcher) - overall.value.pitching.grade;
+      if (!stuffF(x.code, 95, 0, 0, x)) return { v, ivb, hb, plus: x.stuff, dPlus: 0, grade: x.grades.stuff, outside: false, dOverall: 0, lo: show(x.grades.stuff), hi: show(x.grades.stuff) };
       return { v, ivb, hb, plus, dPlus, grade, outside, dOverall, lo: show(toGrade(plus - unc, MODELS.stuff.sd.pitch)), hi: show(toGrade(plus + unc, MODELS.stuff.sd.pitch)) };
     });
 
@@ -1008,8 +1095,29 @@ createApp({
     const lerp = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
     const rampRGB = (T, g) => { const t = clamp((g - 50) / 30, -1, 1); return t >= 0 ? lerp(T.mid, T.hi, t) : lerp(T.mid, T.lo, -t); };
 
+    let surfKey = '', surfCache = null;
+    // tjStuff+ grade over a 1-inch IVB x HB grid for this pitch, at its mean traits and the chosen velocity.
+    function realSurface(X0, X1, Y0, Y1) {
+      const d = stuffData.value, x = labPitch.value, P = x.real, isFb = P.code === d.fastball.type;
+      const key = [d.id, P.code, labDelta.velo, X0, Y0].join('|');
+      if (key === surfKey) return surfCache;
+      const mean = [0, 1, 2, 3, 4, 5, 6].map(i => P.sample.reduce((s, r) => s + r[i], 0) / P.sample.length);
+      const at = (dv, divb, dhb) => {
+        const dz = dAcc(divb, P.t40), dx = -dAcc(dhb, P.t40);
+        const fb = isFb ? { speed: d.fastball.speed + dv, az: d.fastball.az + dz, ax: d.fastball.ax + dx } : d.fastball;
+        return tjOf(featRows([mean], { v: dv, az: dz, ax: dx }, fb));
+      };
+      const anchor = at(0, 0, 0), cells = [];
+      for (let ivb = Y0; ivb < Y1; ivb++) for (let hb = X0; hb < X1; hb++) {
+        const plus = P.stuff_plus + at(labDelta.velo, ivb + 0.5 - x.ivb, hb + 0.5 - x.hb) - anchor;
+        cells.push({ hb, ivb, g: gradeFor(plus, P.code) });
+      }
+      surfKey = key; surfCache = cells;
+      return cells;
+    }
     function drawLab() {
       const cv = labCanvas.value; if (!cv) return;
+      if (realStuff.value) return drawLabReal(cv);
       const T = tokens(), ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
       const x0 = labPitch.value, pad = { l: 44, r: 14, t: 12, b: 40 }, X0 = Math.floor(x0.hb - 13), X1 = X0 + 26, Y0 = Math.floor(x0.ivb - 12), Y1 = Y0 + 24;
       const sx = h => pad.l + (h - X0) / (X1 - X0) * (W - pad.l - pad.r), sy = v => H - pad.b - (v - Y0) / (Y1 - Y0) * (H - pad.t - pad.b);
@@ -1045,6 +1153,52 @@ createApp({
       if (Math.hypot(bx - ax, by - ay) > 4) ctx.fillText(`projected · ${show(lab.value.grade)}`, bx + 11, by + 16);
     }
 
+    function drawLabReal(cv) {
+      const T = tokens(), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, x = labPitch.value, P = x.real;
+      const pad = { l: 44, r: 14, t: 12, b: 40 }, X0 = Math.floor(x.hb - 13), X1 = X0 + 26, Y0 = Math.floor(x.ivb - 12), Y1 = Y0 + 24;
+      const sx = h => pad.l + (h - X0) / (X1 - X0) * (W - pad.l - pad.r), sy = v => H - pad.b - (v - Y0) / (Y1 - Y0) * (H - pad.t - pad.b);
+      ctx.clearRect(0, 0, W, H);
+      ctx.font = '11px "IBM Plex Mono", monospace'; ctx.fillStyle = T.muted;
+      if (!tj.value) { ctx.textAlign = 'center'; ctx.fillText('Loading tjStuff+ model…', W / 2, H / 2); return; }
+      for (const c of realSurface(X0, X1, Y0, Y1)) {
+        ctx.fillStyle = `rgb(${rampRGB(T, show(c.g))})`;
+        ctx.fillRect(Math.floor(sx(c.hb)), Math.floor(sy(c.ivb + 1)), Math.ceil(sx(c.hb + 1) - sx(c.hb)) + 1, Math.ceil(sy(c.ivb) - sy(c.ivb + 1)) + 1);
+      }
+      ctx.strokeStyle = T.line; ctx.lineWidth = 1; ctx.fillStyle = T.muted; ctx.textAlign = 'center';
+      for (let t = Math.ceil(X0 / 5) * 5; t <= X1; t += 5) { ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(sx(t), pad.t); ctx.lineTo(sx(t), H - pad.b); ctx.stroke(); ctx.globalAlpha = 1; ctx.fillText(t, sx(t), H - pad.b + 14); }
+      ctx.textAlign = 'right';
+      for (let t = Math.ceil(Y0 / 5) * 5; t <= Y1; t += 5) { ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(pad.l, sy(t)); ctx.lineTo(W - pad.r, sy(t)); ctx.stroke(); ctx.globalAlpha = 1; ctx.fillText(t, pad.l - 6, sy(t) + 4); }
+      ctx.textAlign = 'left'; ctx.fillText('← glove side   horizontal break (in)   arm side →', pad.l, H - 8);
+      ctx.save(); ctx.translate(12, pad.t + (H - pad.t - pad.b) / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText('induced vertical break (in)', 0, 0); ctx.restore();
+      // his actual pitches (sample), placed by their acceleration difference from the pitch-type mean
+      const k = 0.5 * P.t40 * P.t40 * 12, mAz = P.sample.reduce((s, r) => s + r[3], 0) / P.sample.length, mAx = P.sample.reduce((s, r) => s + r[4], 0) / P.sample.length;
+      ctx.fillStyle = T.ink; ctx.globalAlpha = .35;
+      for (const r of P.sample) { ctx.beginPath(); ctx.arc(sx(x.hb - (r[4] - mAx) * k), sy(x.ivb + (r[3] - mAz) * k), 2.2, 0, 7); ctx.fill(); }
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([6, 5]); ctx.strokeStyle = T.ink; ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.ellipse(sx(x.hb), sy(x.ivb), Math.abs(sx(x.hb + 2 * P.hb_sd) - sx(x.hb)), Math.abs(sy(x.ivb + 2 * P.ivb_sd) - sy(x.ivb)), 0, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      for (const o of arsenal.value) if (o.code !== x.code && o.hb > X0 && o.hb < X1 && o.ivb > Y0 && o.ivb < Y1) { ctx.fillStyle = T.muted; ctx.beginPath(); ctx.arc(sx(o.hb), sy(o.ivb), 3, 0, 7); ctx.fill(); ctx.textAlign = 'left'; ctx.fillText(o.code, sx(o.hb) + 6, sy(o.ivb) + 4); }
+      const ax = sx(x.hb), ay = sy(x.ivb), bx = sx(lab.value.hb), by = sy(lab.value.ivb);
+      if (Math.hypot(bx - ax, by - ay) > 4) { ctx.strokeStyle = T.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); }
+      ctx.lineWidth = 3; ctx.strokeStyle = T.ink; ctx.beginPath(); ctx.arc(ax, ay, 9, 0, 7); ctx.stroke();
+      ctx.fillStyle = T.ink; ctx.beginPath(); ctx.arc(bx, by, 7, 0, 7); ctx.fill();
+      ctx.font = '600 12px "IBM Plex Sans", sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(`${x.code} now · ${show(x.grades.stuff)}`, ax + 13, ay - 8);
+      if (Math.hypot(bx - ax, by - ay) > 4) ctx.fillText(`projected · ${show(lab.value.grade)}`, bx + 11, by + 16);
+    }
+
+    // Where he throws a pitch: [meanX, meanZ, sdX, sdZ, rho], catcher's view. Real Statcast when loaded.
+    function actualLoc(code) {
+      const real = byCode(code)?.real?.loc;
+      if (real) { const l = real[bats.value] || real.all; if (l) return l; }
+      const a = LOC_ACTUAL[code] || LOC_ACTUAL[LOC_ALIAS[code]] || LOC_ACTUAL.FF, m = p.throws === 'L' ? -1 : 1;
+      return [a[0] * m, a[1], a[2], a[3], 0];
+    }
+    // Ellipse axes for a correlated bivariate normal
+    function locEllipse(l) {
+      const vx = l[2] ** 2, vz = l[3] ** 2, c = l[4] * l[2] * l[3], tr = (vx + vz) / 2, det = Math.sqrt(((vx - vz) / 2) ** 2 + c * c);
+      return { r1: Math.sqrt(tr + det), r2: Math.sqrt(Math.max(tr - det, 1e-6)), ang: 0.5 * Math.atan2(2 * c, vx - vz) };
+    }
     function drawHeat() {
       const T = tokens(), x = selPitch.value;
       const same = bats.value === p.throws, mirror = p.throws === 'L' ? -1 : 1;
@@ -1064,9 +1218,9 @@ createApp({
           }
           ctx.putImageData(img, 0, 0);
         } else {
-          const r = rng(x.code.charCodeAt(0) * 97 + c.ball + (same ? 1 : 2)), a = LOC_ACTUAL[x.code], bin = 0.25, sums = {};
+          const r = rng(x.code.charCodeAt(0) * 97 + c.ball + (same ? 1 : 2)), a = actualLoc(x.code), bin = 0.25, sums = {};
           for (let i = 0; i < Math.round(x.n * 0.35); i++) {
-            const px = (a[0] + gauss(r) * a[2]) * mirror, pz = a[1] + gauss(r) * a[3];
+            const g1 = gauss(r), g2 = gauss(r), px = a[0] + a[2] * g1, pz = a[1] + a[3] * (a[4] * g1 + Math.sqrt(1 - a[4] ** 2) * g2);
             const k = Math.floor(px / bin) + ',' + Math.floor(pz / bin); const o = val(px, pz) + gauss(r) * 22;
             (sums[k] = sums[k] || [0, 0]); sums[k][0] += o; sums[k][1]++;
           }
@@ -1080,10 +1234,10 @@ createApp({
         ctx.fillStyle = T.surface; ctx.strokeStyle = T.muted; ctx.beginPath();
         const py0 = H - 10; ctx.moveTo(sx(-0.71), py0 - 6); ctx.lineTo(sx(0.71), py0 - 6); ctx.lineTo(sx(0.71), py0); ctx.lineTo(sx(0), py0 + 6); ctx.lineTo(sx(-0.71), py0); ctx.closePath(); ctx.fill(); ctx.stroke();
         // actual distribution contours (50% and 80%)
-        const a = LOC_ACTUAL[x.code];
+        const a = actualLoc(x.code), e = locEllipse(a), ppf = (W / (X1 - X0)), ppz = (H / (Z1 - Z0));
         for (const [k, dash] of [[1.177, []], [1.794, [4, 4]]]) {
           ctx.setLineDash(dash); ctx.strokeStyle = T.ink; ctx.lineWidth = 1.6; ctx.beginPath();
-          ctx.ellipse(sx(a[0] * mirror), sz(a[1]), (sx(a[2] * k) - sx(0)), (sz(0) - sz(a[3] * k)), 0, 0, 7); ctx.stroke();
+          ctx.ellipse(sx(a[0]), sz(a[1]), e.r1 * k * ppf, e.r2 * k * ppz, -e.ang, 0, 7); ctx.stroke();
         }
         ctx.setLineDash([]);
         // batter side label
@@ -1092,11 +1246,11 @@ createApp({
       }
     }
     const locRead = computed(() => {
-      const x = selPitch.value, same = bats.value === p.throws, t = LOC_TARGET[x.code][same ? 'same' : 'opp'], a = LOC_ACTUAL[x.code];
+      const x = selPitch.value, same = bats.value === p.throws, m = p.throws === 'L' ? -1 : 1, t0 = locTarget(x.code)[same ? 'same' : 'opp'], t = [t0[0] * m, t0[1]], a = actualLoc(x.code);
       const miss = Math.hypot((a[0] - t[0]) * 12, (a[1] - t[1]) * 12);
       const dirZ = a[1] > t[1] + 0.2 ? 'up' : a[1] < t[1] - 0.2 ? 'down' : '';
       const where = t[1] < 1.6 ? 'below the zone' : t[1] > 3.2 ? 'at the top of the zone' : 'on the edge';
-      return `The ${x.name.toLowerCase()} is most valuable ${where} against ${same ? 'same' : 'opposite'}-side hitters. His average location sits about ${Math.round(miss)} inches from that spot${dirZ ? ', missing ' + dirZ : ''}. When he is behind, the value of the edges drops and the middle of the zone costs the most.`;
+      return `The ${x.name.toLowerCase()} is most valuable ${where} against ${same ? 'same' : 'opposite'}-side hitters (mock surface). His average location${realStuff.value ? ' (real)' : ''} sits about ${Math.round(miss)} inches from that spot${dirZ ? ', missing ' + dirZ : ''}. When he is behind, the value of the edges drops and the middle of the zone costs the most.`;
     });
 
     /* ---------- transactions ---------- */
@@ -1144,30 +1298,31 @@ createApp({
     });
 
     /* ---------- biomechanics ---------- */
-    const bioColor = computed(() => byCode(bioCode.value).color);
+    const bioColor = computed(() => byCode(bioCode.value)?.color || 'var(--accent)');
+    const bioOf = c => BIO[c] || BIO_DEFAULT;
     const phaseName = computed(() => PHASES[Math.round(phase.value)]);
     function pose(t, code) {
       const i = Math.min(3, Math.floor(t)), f = t - i, A = KEY[i], B = KEY[i + 1], out = {};
       const flip = p.throws === 'L';
       for (const j of J) out[j] = [A[j][0] + (B[j][0] - A[j][0]) * f, A[j][1] + (B[j][1] - A[j][1]) * f];
       if (code) { // rotate throwing arm about shoulder by 3x arm-angle delta, strongest at release
-        const w = Math.exp(-((t - 3) ** 2) / 0.6), ang = -BIO[code].arm * 3 * w * Math.PI / 180, s = out.sh;
+        const w = Math.exp(-((t - 3) ** 2) / 0.6), ang = -bioOf(code).arm * 3 * w * Math.PI / 180, s = out.sh;
         for (const j of ['el', 'wr']) { const dx = out[j][0] - s[0], dy = out[j][1] - s[1]; out[j] = [s[0] + dx * Math.cos(ang) - dy * Math.sin(ang), s[1] + dx * Math.sin(ang) + dy * Math.cos(ang)]; }
-        const dy = BIO[code].relH * 6 * w; out.wr[1] += dy;
+        const dy = bioOf(code).relH * 6 * w; out.wr[1] += dy;
       }
       for (const j of J) out[j] = [flip ? 400 - (40 + out[j][0] * 3.2) : 40 + out[j][0] * 3.2, 268 - out[j][1] * 2.35];
       return out;
     }
     const skeletons = computed(() => [pose(phase.value, null), pose(phase.value, bioCode.value)]);
     const bioRows = computed(() => {
-      const b = BIO[bioCode.value], base = { arm: p.armAngle, relH: 5.9, relS: 2.1, ext: p.extension, trunk: 38 };
+      const b = bioOf(bioCode.value), base = { arm: p.armAngle ?? 41, relH: 5.9, relS: 2.1, ext: p.extension, trunk: 38 };
       const row = (label, k, unit, d, flagAt) => ({ label, a: base[k].toFixed(d) + unit, b: (base[k] + b[k]).toFixed(d) + unit, d: signed(b[k], d) + unit, flag: Math.abs(b[k]) >= flagAt });
       return [row('Arm angle', 'arm', '°', 1, 2.5), row('Release height', 'relH', ' ft', 2, 0.15), row('Release side', 'relS', ' ft', 2, 0.12), row('Extension', 'ext', ' ft', 2, 0.25), row('Trunk rotation at release', 'trunk', '°', 1, 2.5)];
     });
     const bioTell = computed(() => {
       const flags = bioRows.value.filter(r => r.flag).map(r => r.label.toLowerCase());
       return flags.length >= 2
-        ? { flag: true, text: `The ${byCode(bioCode.value).name.toLowerCase()} comes out with a different ${new Intl.ListFormat('en', { type: 'conjunction' }).format(flags)} than the four-seam. Review video with Baseball Sciences before changing the grip.` }
+        ? { flag: true, text: `The ${(byCode(bioCode.value)?.name || bioCode.value).toLowerCase()} comes out with a different ${new Intl.ListFormat('en', { type: 'conjunction' }).format(flags)} than the four-seam. Review video with Baseball Sciences before changing the grip.` }
         : { flag: false, text: 'Release looks like the four-seam. No tipping concern from these metrics.' };
     });
     let raf = 0, last = 0;
@@ -1175,7 +1330,12 @@ createApp({
     function togglePlay() { playing.value = !playing.value; last = 0; if (playing.value) raf = requestAnimationFrame(tick); else cancelAnimationFrame(raf); }
 
     /* ---------- registry cards ---------- */
-    const registryCards = [...Object.values(MODELS), ...FUTURE, { key: 'next', label: 'Next model', model: 'model_key', status: 'open slot', slot: 'any card, table column, or overlay', desc: 'Register outputs with a scale, SD, and stabilization point. The page renders it with no new front-end code.' }];
+    const registryCards = computed(() => [
+      ...Object.values(MODELS).map(m => m.key === 'stuff' && realStuff.value ? { ...m, model: 'tjstuff_plus', version: stuffMeta.value.model.version, status: 'live · real',
+        desc: 'Open-source Stuff model: predicts a pitch\'s expected run value from velocity, spin, extension, movement, release, and differences from his primary fastball.',
+        credit: `${stuffMeta.value.model.author} · ${stuffMeta.value.model.license} License`, url: stuffMeta.value.model.url,
+        note: `Scored on ${stuffMeta.value.pitches.toLocaleString()} ${stuffMeta.value.season} Statcast pitches through ${stuffMeta.value.through}. Grade = 50 + 10 × (tjStuff+ − pitch-type mean) ÷ spread.` } : m),
+      ...FUTURE, { key: 'next', label: 'Next model', model: 'model_key', status: 'open slot', slot: 'any card, table column, or overlay', desc: 'Register outputs with a scale, SD, and stabilization point. The page renders it with no new front-end code.' }]);
 
     function go(id) { document.getElementById(id)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
 
@@ -1193,6 +1353,7 @@ createApp({
         resultsRaw.value = Object.values(bySeason).sort((a, b) => a.season - b.season).map(o => ({ ...o, era: o.ip ? o.er * 9 / o.ip : 0, ipText: Math.floor(o.ip) + '.' + Math.round((o.ip % 1) * 3) }));
         Object.assign(p, { id, name: per.fullName, team: per.currentTeam?.name || 'MLB', throws: per.pitchHand?.code || 'R', age: per.currentAge, height: per.height, role: (resultsRaw.value.at(-1)?.ip || 0) > 90 ? 'Starter' : 'Pitcher' });
         shotOk.value = true; live.value = true;
+        await loadStuff(id);
       } catch (e) { setDemo(); }
       bats.value = p.throws === 'L' ? 'R' : 'L';
     }
@@ -1200,8 +1361,35 @@ createApp({
       live.value = false;
       Object.assign(p, { id: 0, name: 'Demo LHP', team: 'Synthetic data', throws: 'L', role: 'Starter', age: 27, height: '6\' 2"' });
       txRaw.value = DEMO_TX;
+      stuffData.value = null;
+      Object.assign(p, { armAngle: 41, extension: 6.6 });
       resultsRaw.value = DEMO_RESULTS.map(r => ({ ...r, ip: ipNum(r.ip), ipText: String(r.ip) }));
       bats.value = 'R';
+    }
+    // Real Stuff data built by pipeline/build_stuff.py (GitHub Actions) and the tjStuff+ model for Pitch Lab.
+    async function loadStuffMeta() {
+      try {
+        const r = await fetch(`data/stuff/${SEASON}/index.json`);
+        if (!r.ok) throw new Error(r.status);
+        stuffMeta.value = await r.json();
+        fetch('model/tjstuff_v3.json').then(r => r.ok ? r.json() : null).then(m => { if (m && window.TjStuff) tj.value = Object.freeze(new window.TjStuff(m)); }).catch(() => {});
+      } catch (e) { stuffMeta.value = null; stuffStatus.value = 'Mock arsenal: real Stuff data has not been built for this site yet.'; }
+    }
+    async function loadStuff(id) {
+      stuffData.value = null; surfKey = '';
+      if (!stuffMeta.value || !id) return;
+      try {
+        const r = await fetch(`data/stuff/${SEASON}/${id}.json`);
+        if (!r.ok) throw new Error(r.status);
+        const d = await r.json();
+        stuffData.value = Object.freeze(d);
+        Object.assign(p, { armAngle: d.arm_angle, extension: d.extension });
+        const lever = d.pitches.filter(x => x.usage >= 0.05).sort((a, b) => a.stuff_grade - b.stuff_grade)[0] || d.pitches[0];
+        selected.value = lever.code; setLab(lever.code);
+        bioCode.value = (d.pitches.find(x => x.code !== d.fastball.type) || d.pitches[0]).code;
+      } catch (e) {
+        stuffStatus.value = `Mock arsenal: no ${SEASON} Statcast data for this pitcher (fewer than 50 pitches, or not in this build).`;
+      }
     }
     async function loadTeams() {
       try {
@@ -1237,7 +1425,7 @@ createApp({
     }
 
     const redrawAll = () => nextTick(() => { drawLab(); drawHeat(); });
-    watch([lab, labCode, arsenal, themeTick], () => nextTick(drawLab));
+    watch([lab, labCode, arsenal, themeTick, tj], () => nextTick(drawLab));
     watch([selected, bats, heatMode, arsenal, themeTick, () => p.throws], () => nextTick(drawHeat));
 
     onMounted(async () => {
@@ -1248,6 +1436,7 @@ createApp({
       redrawAll();
       document.fonts?.ready.then(redrawAll);
       applyPreset(PRESETS.CH[1]);
+      await loadStuffMeta();
       await Promise.all([loadTeams(), changeTeam(DEFAULT_TEAM)]);
       redrawAll();
     });
@@ -1260,6 +1449,7 @@ createApp({
       TX_CATS, TX_FILTERS, txFilter, txAll, txCounts, txFiltered, txShown, txSummary, txTimeline,
       bioCode, bioColor, phase, phaseName, playing, togglePlay, skeletons, bioRows, bioTell, registryCards,
       show, gStyle, gradeBg, gradeInk, barW, pct, signed, roleFor, go, loadPitcher,
+      realStuff, stuffMeta, stuffStatus, fbCode, trendPts,
       mx: h => 30 + (h + 24) / 48 * 260, my: v => 270 - (v + 22) / 48 * 260 };
   }
 }).mount('#app');

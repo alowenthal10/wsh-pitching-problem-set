@@ -44,5 +44,3 @@ I used Claude (Anthropic's Claude Code agent) as my engineering partner, and I a
   - wrote the code (the Vue app, the data pipeline, the Location and Pitching models, the validation checks);
   - drafted this summary and the PRD.
 - **Claude tested** each change in a headless browser and against synthetic data before deploying. It also caught and fixed modeling problems the validation surfaced, such as the Location over-weighting and the seam-effect calibration.
-
-<!-- Edit "How I used AI" so it reflects exactly what you did versus what Claude did. -->

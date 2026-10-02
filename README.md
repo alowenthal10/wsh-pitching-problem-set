@@ -1,22 +1,21 @@
 # Pitcher Page: BPE problem set
 
-**Live mockup:** https://alowenthal10.github.io/wsh-pitching-problem-set/mockup/
+**Live site:** https://alowenthal10.github.io/wsh-pitching-problem-set/
+
+- **Leaderboard** (site root): every qualified pitcher (50+ pitches) for the season, with Pitching, Stuff, and Location grades, innings, ERA, and model-expected ERA. Filter by team, role, and minimum pitches; switch seasons; Nationals pitchers are highlighted. Filters live in the URL, so any view can be shared.
+- **Player pages** at clean URLs, e.g. `/wsh-pitching-problem-set/mackenzie-gore/`. Search from the header on any page. Pitchers who share a name get their MLBAM id appended (`/will-smith-669022/`).
 
 | Deliverable | File |
 |---|---|
-| 1. Mockup | [`mockup/index.html`](mockup/index.html): open it in a browser. No build step. |
+| 1. Mockup (now a working site) | [`mockup/`](mockup/): `index.html` is the leaderboard, `player.html` + `assets/` are the player page |
 | 2. Product Requirements Document | [`docs/PRD.md`](docs/PRD.md) |
 | 3. Decisions, assumptions, and AI use | [`docs/SUMMARY.md`](docs/SUMMARY.md) |
 
-## Running the mockup
+## How the site is built
 
-Open `mockup/index.html` directly, or serve the folder:
+GitHub Pages serves files only, so every player URL is a real page: `pipeline/build_site.py` writes a ~1 KB `/<slug>/index.html` shell per pitcher that loads the shared player app (`mockup/assets/`). The `mockup/` folder is published as the site root by `.github/workflows/pages.yml`; the old `/mockup/` address redirects to the root.
 
-```sh
-npx http-server mockup -p 8080   # or: python3 -m http.server -d mockup 8080
-```
-
-The page loads Vue 3 and fonts from public CDNs. Bio, roster, and season results come from the MLB Stats API, called from your browser. If that API can't be reached, the page shows a synthetic demo pitcher instead.
+To run locally after a data build, serve the folder (`npx http-server mockup`) and open `/` for the leaderboard or `player.html?id=<MLBAM id>` for a player. Without built data, the player page falls back to a labeled synthetic demo pitcher.
 
 ### What's real
 - **MLB Stats API** (live, in the browser): bio, teams, rosters, transactions, season results.
@@ -31,7 +30,7 @@ Still a placeholder, and tagged on the page: the formula that credits a persiste
 ### Data pipeline
 `pipeline/location_model.py` builds the Location model (smoothed run value by spot, for each pitch type, count state, and batter side; the smoothing width is chosen out of sample) and the Pitching model (a least-squares blend of Stuff and Location fit to actual run value, with Location's weight set by out-of-sample prediction), and runs a split-half check of both. `pipeline/build_stuff.py` downloads the season's Statcast pitches from Baseball Savant (cached by day), scores every pitch with tjStuff+ exactly as its notebook does, and writes one JSON file per pitcher to `mockup/data/stuff/<season>/`. `pipeline/export_model.py` converts the tjStuff+ model to `mockup/model/tjstuff_v3.json` for the browser; `mockup/model/tjstuff.js` evaluates it (checked against Python to within 0.0001 tjStuff+ points).
 
-`.github/workflows/pages.yml` runs the pipeline daily during the season and on every push, then deploys the site. **Settings → Pages → Source must be set to "GitHub Actions."** Run the workflow manually with **validate** checked to recompute 2024 and compare against Nestico's published 2024 leaderboard. **Result (Oct 2, 2026): r = 0.999 and a mean absolute difference of 0.08 tjStuff+ points across 562 pitchers with 300+ pitches**, so the Savant-based pipeline reproduces the published model.
+`pipeline/leaders.py` adds team and role (from Statcast) and innings, ERA, and model-expected ERA (from the MLB Stats API at build time) to each season's league index. `.github/workflows/pages.yml` runs the pipeline daily during the season and on every push, generates the pitcher pages, then deploys the site. **Settings → Pages → Source must be set to "GitHub Actions."** Run the workflow manually with **validate** checked to recompute 2024 and compare against Nestico's published 2024 leaderboard. **Result (Oct 2, 2026): r = 0.999 and a mean absolute difference of 0.08 tjStuff+ points across 562 pitchers with 300+ pitches**, so the Savant-based pipeline reproduces the published model.
 
 **Split-half check** (fit on odd days, test on even days; pitchers with 200+ pitches in each half):
 

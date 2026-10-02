@@ -34,6 +34,9 @@ After the mockup was hosted, I replaced the mock Stuff layer with real data and 
 - I then replaced the last mock sections. The "traits the models don't see" panel is computed from Statcast (perceived velocity, approach angle versus expected, release consistency, times through the order, arm-angle tells). Pitch Lab presets come from league data: the shape of top-quarter pitches from similar arm angles, and the league's top-quarter seam-shifted wake, which I measure by comparing Statcast's spin axis with actual movement after calibrating the axis convention on four-seamers. The biomechanics panel uses his real Statcast release metrics and a real motion-captured reference delivery from Driveline's OpenBiomechanics Project matched on throwing hand and arm angle, clearly labeled as not his own motion.
 - The only placeholder left is the formula that credits a persistent results gap in the results-adjusted grade. That is a modeling judgment R&D should own, so I left it tagged.
 
+## Leaderboard and multi-page site (added later)
+The landing page is now a league leaderboard: every pitcher with 50+ pitches, default view 300+ so short samples don't top the list, with team, role, and season filters, sortable grades, and the Nationals highlighted. Each pitcher has a clean, shareable URL (`/mackenzie-gore/`). Because GitHub Pages only serves files, the build writes a small real page per pitcher instead of relying on a 404-page redirect, which would make every player link return HTTP 404. The player page lost its team and pitcher dropdowns in favor of header search and a breadcrumb back to the (team-filtered) leaderboard.
+
 ## Deprioritized
 - Percentiles (GM preference). The API still returns raw values, so they could come back as a toggle.
 - Grip and seam-orientation modeling (Phase 3, owned by partners).

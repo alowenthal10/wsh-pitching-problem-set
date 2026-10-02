@@ -70,14 +70,15 @@ jobs:
               --model-source "$TJSTUFF_RAW/$TJSTUFF_SHA/model/lgbm_model_2020_2023.joblib" --out mockup/data
           done
 
+      - name: Generate pitcher pages
+        run: python pipeline/build_site.py mockup
+
       - uses: actions/configure-pages@v5
 
-      - uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./
-          destination: ./_site
-
+      # The mockup/ folder is the site root: index.html is the leaderboard, /<pitcher-slug>/ are player pages.
       - uses: actions/upload-pages-artifact@v3
+        with:
+          path: mockup
 
   deploy:
     needs: build

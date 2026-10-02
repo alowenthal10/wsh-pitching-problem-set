@@ -24,6 +24,7 @@ import pandas as pd
 
 import location_model as LM
 import traits as TR
+import leaders as LD
 
 warnings.filterwarnings("ignore")
 
@@ -307,23 +308,26 @@ def build(df, model, season, out_dir, model_meta):
     d = os.path.join(out_dir, "stuff", str(season))
     os.makedirs(d, exist_ok=True)
     index = []
+    stats, teams, lg_era = LD.season_stats(season)
     for pid, g in df.groupby("pitcher"):
         if len(g) < MIN_PITCHES:
             continue
         pj = pitcher_json(pid, g, scales, rng, extra)
         with open(os.path.join(d, f"{pid}.json"), "w") as f:
             json.dump(pj, f, separators=(",", ":"))
-        index.append({"id": pj["id"], "name": pj["name"], "n": pj["n"], "stuff_plus": pj["stuff_plus"]})
+        index.append(LD.index_entry(pj, g, stats, teams, lg_era))
     meta = {
         "season": season, "built_at": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "through": str(pd.to_datetime(df["game_date"]).max().date()), "pitches": int(len(df)),
         "source": "Statcast via Baseball Savant (MLB Advanced Media). Non-commercial use.",
         "model": model_meta, "xrv_mean": xmean, "xrv_sd": xsd, "scales": scales, "location": loc_meta, "design": design,
+        "league_era": round(lg_era, 3) if lg_era else None, "teams": teams,
         "pitchers": sorted(index, key=lambda x: -x["n"]),
     }
     with open(os.path.join(d, "index.json"), "w") as f:
         json.dump(meta, f, separators=(",", ":"))
-    print(f"{season}: {len(df):,} pitches, {len(index)} pitchers -> {d}")
+    print(f"{season}: {len(df):,} pitches, {len(index)} pitchers -> {d}; "
+          f"{sum(1 for x in index if x['ip'])} with Stats API innings, {sum(1 for x in index if x['team'])} with a team")
 
 
 def validate(df, model, reference):

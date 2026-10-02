@@ -1,5 +1,7 @@
 # Pitcher Page: BPE problem set
 
+**Live mockup:** https://alowenthal10.github.io/wsh-pitching-problem-set/mockup/
+
 | Deliverable | File |
 |---|---|
 | 1. Mockup | [`mockup/index.html`](mockup/index.html): open it in a browser. No build step. |

@@ -12,7 +12,9 @@ Location model
 
 Pitching model
   A least-squares blend of the tjStuff+ prediction and the location value, fit to each pitch's
-  actual run value. Its output is in runs per pitch, which gives model-expected runs and ERA.
+  actual run value. Location fits same-game outcomes far better than it predicts later ones, so its
+  weight is then shrunk to the share (0-100%) that best predicts second-half run value per pitcher
+  from first-half data. The output is in runs per pitch, which gives model-expected runs and ERA.
 
 Scaling matches tjStuff+: per-pitch plus = 100 - 10 * z-score (lower run value is better), a
 pitcher's plus is the mean over his pitches, and 20-80 grades use the per-pitch-type spread.
@@ -129,17 +131,24 @@ def choose_sigma(df):
     return best, {f"{s / 10:.1f} ft": round(c, 4) for s, c in scores.items()}
 
 
-def apply(df, sigma):
+def blend_values(df, b, lam):
+    """Pitching xRV with the location weight scaled by lam, re-centered so it averages the actual run value."""
+    raw = b[1] * df["xrv"] + lam * b[2] * df["loc_v"]
+    return raw - raw.mean() + df["rv"].mean()
+
+
+def apply(df, sigma, lam=1.0):
     """Fit both models on df and add loc_v, loc, pxrv, pitching columns. Returns (df, artifacts)."""
     type_map, own = surface_types(df)
     surfaces = fit_surfaces(df, type_map, sigma)
     df["loc_v"] = location_values(df, surfaces, type_map)
-    blend = fit_blend(df)
-    df["pxrv"] = blend[0] + blend[1] * df["xrv"] + blend[2] * df["loc_v"]
+    ols = fit_blend(df)
+    df["pxrv"] = blend_values(df, ols, lam)
+    blend = [float(df["pxrv"].mean() - (ols[1] * df["xrv"] + lam * ols[2] * df["loc_v"]).mean()), ols[1], lam * ols[2]]
     loc_mean, loc_sd = float(df["loc_v"].mean()), float(df["loc_v"].std())
     df["loc"] = plus(df["loc_v"])
     df["pitching"] = plus(df["pxrv"])
-    return df, {"type_map": type_map, "surface_types": own, "surfaces": surfaces, "blend": blend, "sigma_ft": sigma / 10,
+    return df, {"type_map": type_map, "surface_types": own, "surfaces": surfaces, "blend": blend, "ols_blend": ols, "loc_weight": lam, "sigma_ft": sigma / 10,
                 "loc_mean": loc_mean, "loc_sd": loc_sd, "pxrv_mean": float(df["pxrv"].mean())}
 
 
@@ -155,21 +164,33 @@ def surfaces_json(art):
 
 
 def split_half(df, sigma, min_pitches=200):
-    """Fit on odd days, test on even days. Reports how stable each metric is across halves and how
-    well each first-half metric predicts the second half's actual run value per pitch."""
+    """Fit on odd days, test on even days. Chooses the Pitching model's location weight, then reports how
+    stable each metric is across halves and how well each first-half metric predicts the second half's
+    actual run value per pitch."""
     h1, h2 = halves(df)
     h1, art = apply(h1, sigma)
     h2["loc_v"] = location_values(h2, art["surfaces"], art["type_map"])
-    b = art["blend"]
-    h2["pxrv"] = b[0] + b[1] * h2["xrv"] + b[2] * h2["loc_v"]
+    agg = lambda h, cols: h.groupby("pitcher").agg(n=("rv", "size"), **{c: (c, "mean") for c in cols})
+    ols = art["ols_blend"]
     for h in (h1, h2):
-        h["s_"], h["l_"], h["p_"] = -h["xrv"], -h["loc_v"], -h["pxrv"]   # higher is better
-        h["a_"] = -h["rv"]
-    agg = lambda h: h.groupby("pitcher").agg(n=("s_", "size"), s=("s_", "mean"), l=("l_", "mean"), p=("p_", "mean"), a=("a_", "mean"))
-    m = agg(h1).join(agg(h2), lsuffix="1", rsuffix="2", how="inner")
+        h["a_"] = -h["rv"]                        # higher is better
+        h["s_"], h["l_"] = -h["xrv"], -h["loc_v"]
+    # location weight: the share of the fitted coefficient that best predicts the second half
+    a2 = agg(h2, ["a_"])
+    weights = {}
+    for lam in np.round(np.linspace(0, 1, 11), 1):
+        h1["p_"] = -blend_values(h1, ols, lam)
+        m = agg(h1, ["p_"]).join(a2, lsuffix="1", rsuffix="2", how="inner")
+        m = m[(m["n1"] >= min_pitches) & (m["n2"] >= min_pitches)]
+        weights[float(lam)] = float(m["p_"].corr(m["a_"]))
+    lam = max(weights, key=weights.get)
+    h1["p_"] = -blend_values(h1, ols, lam)
+    h2["p_"] = -blend_values(h2, ols, lam)
+    m = agg(h1, ["s_", "l_", "p_", "a_"]).join(agg(h2, ["s_", "l_", "p_", "a_"]), lsuffix="1", rsuffix="2", how="inner")
     m = m[(m["n1"] >= min_pitches) & (m["n2"] >= min_pitches)]
-    out = {"pitchers": int(len(m)), "min_pitches_per_half": min_pitches}
-    for k, name in (("s", "stuff"), ("l", "location"), ("p", "pitching"), ("a", "actual_run_value")):
+    out = {"pitchers": int(len(m)), "min_pitches_per_half": min_pitches, "loc_weight": lam,
+           "loc_weight_choice": {f"{k:.0%}": round(v, 3) for k, v in weights.items()}}
+    for k, name in (("s_", "stuff"), ("l_", "location"), ("p_", "pitching"), ("a_", "actual_run_value")):
         out[f"{name}_reliability"] = round(float(m[f"{k}1"].corr(m[f"{k}2"])), 3)
-        out[f"{name}_predicts_2nd_half"] = round(float(m[f"{k}1"].corr(m["a2"])), 3)
+        out[f"{name}_predicts_2nd_half"] = round(float(m[f"{k}1"].corr(m["a_2"])), 3)
     return out

@@ -1410,7 +1410,7 @@ createApp({
         desc: 'Smoothed run value of each spot, by pitch type, count state, and batter side, relative to an average location in that situation.',
         note: `Split-half check (${v.pitchers} pitchers): first-half Location vs second-half Location r = ${v.location_reliability}.` };
       return { ...m, model: 'pitching_blend', version: `fit on ${stuffMeta.value.season} Statcast`, status: 'live · real', url: GH, credit: 'This project · method and code',
-        desc: `Least-squares blend fit to actual run value: ${b[1].toFixed(3)} × Stuff xRV + ${b[2].toFixed(3)} × Location value. Output is in runs, which drives expected ERA.`,
+        desc: `Blend fit to actual run value: ${b[1].toFixed(3)} × Stuff xRV + ${b[2].toFixed(3)} × Location value. Location's weight is ${Math.round((v.loc_weight ?? 1) * 100)}% of its fitted value, the share that best predicts second-half results. Output is in runs, which drives expected ERA.`,
         note: `Predicting second-half run value per pitch (${v.pitchers} pitchers): Pitching r = ${v.pitching_predicts_2nd_half}, Stuff ${v.stuff_predicts_2nd_half}, Location ${v.location_predicts_2nd_half}, first-half results ${v.actual_run_value_predicts_2nd_half}.` };
     }
     const registryCards = computed(() => [

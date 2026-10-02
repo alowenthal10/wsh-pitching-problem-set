@@ -280,7 +280,7 @@ def build(df, model, season, out_dir, model_meta):
         sigma, sigma_scores = LM.choose_sigma(df)
         validation = LM.split_half(df, sigma)
         validation["kernel_choice"] = sigma_scores
-        df, art = LM.apply(df, sigma)
+        df, art = LM.apply(df, sigma, validation["loc_weight"])
         extra = {"loc": grade_scales(df, "loc"), "pitching": grade_scales(df, "pitching"),
                  "pxrv_mean": art["pxrv_mean"], "rv_mean": float(df["rv"].mean())}
         ld = os.path.join(out_dir, "location", str(season))
@@ -290,7 +290,8 @@ def build(df, model, season, out_dir, model_meta):
         loc_meta = {"scales": extra["loc"], "pitching_scales": extra["pitching"], "blend": art["blend"],
                     "surface_types": art["surface_types"], "validation": validation}
         print(f"{season}: location kernel {sigma / 10:.1f} ft (out-of-sample r by width: {sigma_scores})")
-        print(f"{season}: blend rv = {art['blend'][0]:.5f} + {art['blend'][1]:.3f} * stuff_xrv + {art['blend'][2]:.3f} * loc_value")
+        print(f"{season}: blend rv = {art['blend'][0]:.5f} + {art['blend'][1]:.3f} * stuff_xrv + {art['blend'][2]:.3f} * loc_value "
+              f"(location weight {art['loc_weight']:.0%} of the fitted {art['ols_blend'][2]:.3f})")
         print(f"{season}: split-half validation {json.dumps(validation)}")
     else:
         print("Statcast columns for the Location model are missing; building Stuff only")

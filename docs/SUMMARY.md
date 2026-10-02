@@ -2,7 +2,7 @@
 
 ## What I built
 
-1. **Mockup** ([`mockup/index.html`](../mockup/index.html)): a working pitcher page in Vue 3, the Nationals' front-end framework. It loads the real bio and season results for MacKenzie Gore and the 40-man pitchers from the MLB Stats API. All model outputs (Stuff, Location, Pitching, Pitch Lab, heatmaps, biomechanics) are illustrative and generated for the mockup. If the API can't be reached, the page switches to a synthetic demo pitcher so no real name ever appears next to invented results.
+1. **Mockup** ([`mockup/index.html`](../mockup/index.html)): a working pitcher page in Vue 3, the Nationals' front-end framework. It loads real teams, active rosters, bios, and season results from the MLB Stats API. It opens on the Nationals and Cade Cavalli. Changing the Team dropdown reloads the Pitcher dropdown with that team's MLB roster. All model outputs (Stuff, Location, Pitching, Pitch Lab, heatmaps, biomechanics) are illustrative and generated for the mockup. If the API can't be reached, the page switches to a synthetic demo pitcher so no real name ever appears next to invented results.
 2. **PRD** ([`PRD.md`](PRD.md)): scope, requirements with priorities, technical design for Rails and Vue, handoffs between R&D, BPE, Baseball Systems, and Baseball Sciences, and a phased roadmap.
 
 ## Key decisions

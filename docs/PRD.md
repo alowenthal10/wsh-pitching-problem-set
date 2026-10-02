@@ -253,7 +253,7 @@ Delivered as a custom element so it can mount in Vue without coupling to our bui
 ### 6.7 Data sources
 
 - **Internal pitch tracking** (Statcast or Hawk-Eye tables already owned by Systems): pitch characteristics, locations, counts, results.
-- **MLB Stats API** (`statsapi.mlb.com/api/v1`): bio, roster, and season lines (`people/{id}?hydrate=stats(group=[pitching],type=[yearByYear])`, `teams/121/roster`). Headshots from `midfield.mlbstatic.com/v1/people/{id}/spots/{size}`. Team marks from `mlbstatic.com/team-logos`. Game video (`dapi.cms.mlbinfra.com`) is a P2 for pitch-level clips. The mockup calls these from the browser. In production, Rails calls them server-side on a schedule and caches the results, so the page has no runtime dependency on MLB's uptime.
+- **MLB Stats API** (`statsapi.mlb.com/api/v1`): bio, roster, and season lines (`people/{id}?hydrate=stats(group=[pitching],type=[yearByYear])`, `teams?sportId=1`, `teams/120/roster?rosterType=active`). Headshots from `midfield.mlbstatic.com/v1/people/{id}/spots/{size}`. Team marks from `mlbstatic.com/team-logos`. Game video (`dapi.cms.mlbinfra.com`) is a P2 for pitch-level clips. The mockup calls these from the browser. In production, Rails calls them server-side on a schedule and caches the results, so the page has no runtime dependency on MLB's uptime.
 
 ## 7. Handoffs and responsibilities
 

@@ -218,7 +218,6 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <header class="topbar">
   <div class="wrap">
     <div class="brand">
-      <img v-if="live && logoOk" :src="mlb.logo(teamId)" alt="" @error="logoOk = false">
       <span>Pitcher Page</span>
     </div>
     <span class="badge" :class="live ? 'live' : 'off'" :title="live ? 'Bio and results from MLB Stats API' : 'MLB Stats API unreachable from this viewer'">{{ live ? 'Live MLB data' : 'Offline demo data' }}</span>
@@ -247,6 +246,11 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
     </div>
   </div>
   <div class="controls">
+    <label class="ctl" v-if="teams.length"><span class="eyebrow">Team</span>
+      <select id="team-select" v-model.number="teamId" @change="changeTeam(teamId)">
+        <option v-for="t in teams" :key="t.id" :value="t.id">{{ t.name }}</option>
+      </select>
+    </label>
     <label class="ctl" v-if="roster.length"><span class="eyebrow">Pitcher</span>
       <select id="pitcher-select" v-model.number="pitcherId" @change="loadPitcher(pitcherId)">
         <option v-for="r in roster" :key="r.id" :value="r.id">{{ r.name }}</option>
@@ -625,21 +629,21 @@ const FUTURE = [
   { key: 'seam', label: 'Seam → movement', model: 'seam_movement', status: 'planned', slot: 'Pitch Lab presets', desc: 'Predicts movement from grip and seam orientation. Owned by Baseball Sciences.' },
 ];
 const SEASON = 2026;
-const DEFAULT_ID = 669022; // MacKenzie Gore
-const TEAM_ID = 121;
+const DEFAULT_TEAM = 120;              // Washington Nationals
+const DEFAULT_PITCHER = /cavalli/i;   // Nationals default; other teams open on their innings leader
 
 /* ---------------- MLB Stats API adapter ---------------- */
 const API = 'https://statsapi.mlb.com/api/v1';
 const mlb = {
   headshot: id => `https://midfield.mlbstatic.com/v1/people/${id}/spots/120`,
-  logo: t => `https://www.mlbstatic.com/team-logos/team-wordmark-on-light/${t}.svg`,
   async json(url) {
     const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 6000);
     try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
     finally { clearTimeout(to); }
   },
   person: id => mlb.json(`${API}/people/${id}?hydrate=currentTeam,stats(group=[pitching],type=[yearByYear],sportId=1)`),
-  roster: (t, s) => mlb.json(`${API}/teams/${t}/roster?rosterType=40Man&season=${s}`),
+  teams: s => mlb.json(`${API}/teams?sportId=1&season=${s}`),
+  roster: (t, s, type) => mlb.json(`${API}/teams/${t}/roster?rosterType=${type}&season=${s}&hydrate=person(stats(type=[season],group=[pitching],season=${s}))`),
 };
 
 /* ---------------- deterministic RNG so the illustrative data is stable per pitcher ---------------- */
@@ -727,9 +731,10 @@ const BIO = { // release metrics relative to FF (illustrative)
 
 createApp({
   setup() {
-    const live = ref(false), logoOk = ref(true), shotOk = ref(true);
+    const live = ref(false), shotOk = ref(true);
+    const teams = ref([]), teamId = ref(DEFAULT_TEAM);
     const roster = ref([]);
-    const pitcherId = ref(DEFAULT_ID);
+    const pitcherId = ref(null);
     const season = ref(SEASON);
     const p = reactive({ id: 0, name: 'Demo LHP', team: 'Synthetic data', throws: 'L', role: 'Starter', age: null, height: null, armAngle: 41, extension: 6.6 });
     const resultsRaw = ref([]);
@@ -761,7 +766,7 @@ createApp({
     /* ---------- arsenal (illustrative, perturbed per pitcher id) ---------- */
     const arsenal = computed(() => {
       const r = rng(p.id || 7);
-      const jitter = p.id === DEFAULT_ID || !p.id ? 0 : 1;
+      const jitter = p.id ? 1 : 0;
       return BASE_ARSENAL.map(b => {
         const x = { ...b };
         if (jitter) { x.stuff = Math.round(b.stuff + gauss(r) * 8); x.location = Math.round(b.location + gauss(r) * 3); x.pitching = Math.round((x.stuff + x.location) / 2 + gauss(r) * 2); x.velo = +(b.velo + gauss(r) * 1.2).toFixed(1); }
@@ -1064,12 +1069,37 @@ createApp({
       resultsRaw.value = DEMO_RESULTS.map(r => ({ ...r, ip: ipNum(r.ip), ipText: String(r.ip) }));
       bats.value = 'R';
     }
-    async function loadRoster() {
+    async function loadTeams() {
       try {
-        const d = await mlb.roster(TEAM_ID, SEASON);
-        roster.value = d.roster.filter(r => r.position?.abbreviation === 'P').map(r => ({ id: r.person.id, name: r.person.fullName })).sort((a, b) => a.name.localeCompare(b.name));
-        if (!roster.value.some(r => r.id === DEFAULT_ID)) roster.value.unshift({ id: DEFAULT_ID, name: 'MacKenzie Gore' });
+        const d = await mlb.teams(SEASON);
+        teams.value = d.teams.filter(t => t.sport?.id === 1 || !t.sport).map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name));
+      } catch (e) { teams.value = []; }
+    }
+    // Pitchers on the team's active MLB roster (40-man if the active roster is empty, e.g. offseason).
+    async function loadRoster(team) {
+      try {
+        let list = [];
+        for (const type of ['active', '40Man']) {
+          const d = await mlb.roster(team, SEASON, type);
+          list = (d.roster || []).filter(r => r.position?.abbreviation === 'P').map(r => ({
+            id: r.person.id, name: r.person.fullName,
+            ip: ipNum(r.person.stats?.[0]?.splits?.[0]?.stat?.inningsPitched || 0),
+          }));
+          if (list.length) break;
+        }
+        roster.value = list.sort((a, b) => a.name.localeCompare(b.name));
       } catch (e) { roster.value = []; }
+    }
+    function defaultPitcher(team) {
+      const r = roster.value;
+      if (!r.length) return null;
+      const named = team === DEFAULT_TEAM && r.find(x => DEFAULT_PITCHER.test(x.name));
+      return (named || r.slice().sort((a, b) => b.ip - a.ip)[0]).id;
+    }
+    async function changeTeam(team) {
+      await loadRoster(team);
+      pitcherId.value = defaultPitcher(team);
+      if (pitcherId.value) await loadPitcher(pitcherId.value);
     }
 
     const redrawAll = () => nextTick(() => { drawLab(); drawHeat(); });
@@ -1084,11 +1114,11 @@ createApp({
       redrawAll();
       document.fonts?.ready.then(redrawAll);
       applyPreset(PRESETS.CH[1]);
-      await Promise.all([loadPitcher(DEFAULT_ID), loadRoster()]);
+      await Promise.all([loadTeams(), changeTeam(DEFAULT_TEAM)]);
       redrawAll();
     });
 
-    return { MODELS, SEASON, PHASES, BONES, counts: COUNTS, mlb, teamId: TEAM_ID, live, logoOk, shotOk, roster, pitcherId, season, p,
+    return { MODELS, SEASON, PHASES, BONES, counts: COUNTS, mlb, teams, teamId, changeTeam, live, shotOk, roster, pitcherId, season, p,
       initials: computed(() => p.name.split(' ').map(s => s[0]).join('').slice(0, 2)),
       selected, bats, heatMode, arsenal, totalPitches, selPitch, overall, headlineModels, months, trend, gx, gy,
       results, eraTicks, ex, ey, adjusted, drivers, bottomLine,

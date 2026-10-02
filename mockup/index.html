@@ -24,6 +24,8 @@
   --g-hi: #C0182F;          /* 80 grade */
   --warn: #A86108;
   --warn-soft: #FBF0DF;
+  --ok: #23774A;
+  --ok-soft: #E1F2E8;
   --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -34,14 +36,14 @@
   :root:not([data-theme="light"]) {
     --bg: #0A111C; --surface: #111B2A; --surface-2: #0E1724; --ink: #E6ECF4; --muted: #91A0B5;
     --line: #22314A; --accent: #8EB1EC; --accent-soft: #1A2A44;
-    --g-lo: #4C86DA; --g-mid: #1C2738; --g-hi: #E0435A; --warn: #E3A54A; --warn-soft: #2C2213;
+    --g-lo: #4C86DA; --g-mid: #1C2738; --g-hi: #E0435A; --warn: #E3A54A; --warn-soft: #2C2213; --ok: #6CCB94; --ok-soft: #132B1F;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0A111C; --surface: #111B2A; --surface-2: #0E1724; --ink: #E6ECF4; --muted: #91A0B5;
   --line: #22314A; --accent: #8EB1EC; --accent-soft: #1A2A44;
-  --g-lo: #4C86DA; --g-mid: #1C2738; --g-hi: #E0435A; --warn: #E3A54A; --warn-soft: #2C2213;
+  --g-lo: #4C86DA; --g-mid: #1C2738; --g-hi: #E0435A; --warn: #E3A54A; --warn-soft: #2C2213; --ok: #6CCB94; --ok-soft: #132B1F;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -83,6 +85,9 @@ button, select, input { font: inherit; color: inherit; }
 .badge { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-body); letter-spacing: .04em; text-transform: uppercase; padding: 5px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
 .badge.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #2E9D5B; }
 .badge.off::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.tag { display: inline-block; vertical-align: middle; margin-left: 8px; font: 600 10px/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; position: relative; top: -2px; }
+.tag.mock { color: var(--warn); background: var(--warn-soft); border: 1px dashed var(--warn); }
+.tag.real { color: var(--ok); background: var(--ok-soft); border: 1px solid transparent; }
 .badge.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
 
 /* panels */
@@ -104,6 +109,8 @@ section { scroll-margin-top: 70px; }
 .verdict-grades { display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 0; padding: 0; overflow: hidden; }
 .vg { padding: 18px 18px 16px; display: grid; gap: 6px; align-content: start; border-right: 1px solid var(--line); }
 .vg:last-child { border-right: 0; }
+.vg .eyebrow { white-space: nowrap; }
+.vg .eyebrow .tag { margin-left: 6px; }
 .vg .big { font: 700 92px/0.85 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .vg .mid { font: 700 64px/0.85 var(--font-display); font-variant-numeric: tabular-nums; }
 .vg .bar { height: 6px; border-radius: 3px; background: var(--surface-2); position: relative; margin-top: 4px; }
@@ -221,7 +228,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       <span>Pitcher Page</span>
     </div>
     <span class="badge" :class="live ? 'live' : 'off'" :title="live ? 'Bio and results from MLB Stats API' : 'MLB Stats API unreachable from this viewer'">{{ live ? 'Live MLB data' : 'Offline demo data' }}</span>
-    <span class="badge warn" title="Stuff, Location and Pitching outputs are generated for this mockup. They are not real model grades.">Model outputs illustrative</span>
+    <span class="badge warn" title="Every grade, pitch metric, heatmap, projection and biomechanic is generated for this mockup. Only bio and season stats are real.">Grades &amp; pitch data are mock</span>
     <nav class="nav" aria-label="Sections">
       <a href="#summary">Summary</a><a href="#arsenal">Arsenal</a><a href="#lab">Pitch Lab</a><a href="#locations">Locations</a><a href="#context">Results vs. model</a><a href="#biomech">Biomechanics</a><a href="#models">Models</a>
     </nav>
@@ -242,7 +249,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       <span v-if="p.height">Ht <b>{{ p.height }}</b></span>
       <span>Arm angle <b class="mono">{{ p.armAngle }}°</b></span>
       <span>Extension <b class="mono">{{ p.extension.toFixed(1) }} ft</b></span>
-      <span>Pitches <b class="mono">{{ totalPitches.toLocaleString() }}</b></span>
+      <span>Pitches <b class="mono">{{ totalPitches.toLocaleString() }}</b><span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></span>
     </div>
   </div>
   <div class="controls">
@@ -269,7 +276,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="verdict">
     <div class="panel verdict-grades">
       <div class="vg" v-for="(m, i) in headlineModels" :key="m.key">
-        <div class="eyebrow">{{ m.label }} grade</div>
+        <div class="eyebrow">{{ m.label }} grade<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></div>
         <div :class="i === 0 ? 'big' : 'mid'" :style="{ color: gradeInk(overall[m.key].grade) }">{{ show(overall[m.key].grade) }}</div>
         <div class="bar"><i :style="{ width: barW(overall[m.key].grade), background: gradeBg(overall[m.key].grade) }"></i><b></b></div>
         <div v-if="i === 0" class="role">{{ roleFor(overall.pitching.grade) }}</div>
@@ -277,13 +284,13 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       </div>
       <div class="adj">
         <span class="g" :style="gStyle(adjusted.grade)">{{ show(adjusted.grade) }}</span>
-        <p><b>Results-adjusted Pitching grade.</b> <span class="muted">{{ adjusted.text }}</span></p>
+        <p><b>Results-adjusted Pitching grade.</b><span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span> <span class="muted">{{ adjusted.text }}</span></p>
         <button class="linkbtn" @click="go('context')">See why →</button>
       </div>
     </div>
 
     <div class="panel bottom-line">
-      <div class="eyebrow">Bottom line</div>
+      <div class="eyebrow">Bottom line<span class="tag mock" title="Generated for this mockup. Written from the mock grades.">Mock</span></div>
       <ol>
         <li v-for="b in bottomLine" :key="b.title">
           <div><b>{{ b.title }}</b><span class="muted">{{ b.body }}</span>
@@ -297,7 +304,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="trend">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
-        <h3>Grades by month, {{ SEASON }}</h3>
+        <h3>Grades by month, {{ SEASON }}<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h3>
         <div class="legend">
           <span v-for="m in headlineModels" :key="m.key"><i :style="{ background: m.color }"></i>{{ m.label }}</span>
         </div>
@@ -315,7 +322,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       </svg>
     </div>
     <div class="panel">
-      <h3>{{ results.latest ? results.latest.season + ' results' : 'Season results' }}</h3>
+      <h3>{{ results.latest ? results.latest.season + ' results' : 'Season results' }}<span class="tag" :class="live ? 'real' : 'mock'" :title="live ? 'From the MLB Stats API' : 'Synthetic demo pitcher'">{{ live ? 'Real' : 'Mock' }}</span></h3>
       <p class="small muted" style="margin-bottom:12px">{{ live ? 'MLB Stats API' : 'Demo values' }}. FIP uses a 3.15 constant.</p>
       <div class="statgrid" v-if="results.latest">
         <div class="stat"><div class="eyebrow">ERA</div><div class="v">{{ results.latest.era.toFixed(2) }}</div></div>
@@ -333,7 +340,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== ARSENAL ========== -->
 <section id="arsenal">
   <div class="sec-head">
-    <div><h2>Arsenal</h2><p>Every pitch graded on the 20–80 scale. Dashed grades have not reached the sample where that model stabilizes. Select a row to drive the rest of the page.</p></div>
+    <div><h2>Arsenal<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>Every pitch graded on the 20–80 scale. Dashed grades have not reached the sample where that model stabilizes. Select a row to drive the rest of the page.</p></div>
   </div>
   <div class="arsenal">
     <div class="panel tablewrap" style="padding:8px 12px">
@@ -394,7 +401,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== PITCH LAB ========== -->
 <section id="lab">
   <div class="sec-head">
-    <div><h2>Pitch Lab</h2><p>What happens to a pitch's Stuff grade if its shape changes. Grip and seam-orientation presets come from a seam-to-movement model (planned, Baseball Sciences); the sliders query the Stuff model directly.</p></div>
+    <div><h2>Pitch Lab<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>What happens to a pitch's Stuff grade if its shape changes. Grip and seam-orientation presets come from a seam-to-movement model (planned, Baseball Sciences); the sliders query the Stuff model directly.</p></div>
     <div class="seg" role="group" aria-label="Pitch">
       <button v-for="x in arsenal" :key="x.code" :aria-pressed="labCode === x.code" @click="setLab(x.code)">{{ x.code }}</button>
     </div>
@@ -443,7 +450,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== LOCATIONS ========== -->
 <section id="locations">
   <div class="sec-head">
-    <div><h2>Locations · {{ selPitch.name }}</h2><p>Catcher's view. Color is the Location model's value for this pitch at each spot, by count. The lines show where he actually throws it (inner 50%, outer 80% of pitches).</p></div>
+    <div><h2>Locations · {{ selPitch.name }}<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>Catcher's view. Color is the Location model's value for this pitch at each spot, by count. The lines show where he actually throws it (inner 50%, outer 80% of pitches).</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <div class="seg" role="group" aria-label="Pitch">
         <button v-for="x in arsenal" :key="x.code" :aria-pressed="selected === x.code" @click="selected = x.code">{{ x.code }}</button>
@@ -478,13 +485,13 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== RESULTS VS MODEL ========== -->
 <section id="context">
   <div class="sec-head">
-    <div><h2>Results vs. model</h2><p>Stuff and Location describe pitches. Some pitchers beat or trail those grades year after year. This section keeps that context next to the grades.</p></div>
+    <div><h2>Results vs. model<span class="tag mock" title="Expected ERA, grades and traits are mock. ERA and FIP are real when live data loads.">Partly mock</span></h2><p>Stuff and Location describe pitches. Some pitchers beat or trail those grades year after year. This section keeps that context next to the grades.</p></div>
   </div>
   <div class="context">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
         <h3>ERA: model-expected vs. actual</h3>
-        <div class="legend"><span><i style="background:var(--accent)"></i>Pitching-model expected</span><span><i style="background:var(--g-hi)"></i>Actual ERA</span><span><i style="background:var(--muted)"></i>FIP</span></div>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Pitching-model expected (mock)</span><span><i style="background:var(--g-hi)"></i>Actual ERA{{ live ? ' (real)' : ' (mock)' }}</span><span><i style="background:var(--muted)"></i>FIP</span></div>
       </div>
       <svg v-if="results.rows.length" viewBox="0 0 640 230" role="img" aria-label="Expected vs actual ERA by season" style="width:100%;height:auto;margin-top:8px">
         <g v-for="t in eraTicks" :key="t">
@@ -506,7 +513,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
       </svg>
       <div class="tablewrap" style="margin-top:8px">
         <table>
-          <thead><tr><th>Season</th><th class="r">IP</th><th class="c">Pitching grade</th><th class="r">Expected ERA</th><th class="r">ERA</th><th class="r">FIP</th><th class="r">ERA − expected</th></tr></thead>
+          <thead><tr><th>Season</th><th class="r">IP</th><th class="c">Grade (mock)</th><th class="r">Exp. ERA (mock)</th><th class="r">ERA</th><th class="r">FIP</th><th class="r">ERA − exp.</th></tr></thead>
           <tbody>
             <tr v-for="r in results.rows" :key="r.season" style="cursor:default">
               <td class="num">{{ r.season }}</td><td class="r num">{{ r.ipText }}</td>
@@ -520,7 +527,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
     </div>
     <div class="panel">
       <div class="callout"><b>{{ adjusted.label }}</b><span>{{ adjusted.long }}</span></div>
-      <h3 style="margin-top:16px">Traits the pitch models don't see</h3>
+      <h3 style="margin-top:16px">Traits the pitch models don't see<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h3>
       <p class="small muted">Candidate explanations for a persistent gap, graded on the same scale. Each is a future model slot.</p>
       <div class="drivers">
         <div class="driver" v-for="d in drivers" :key="d.name">
@@ -535,7 +542,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== BIOMECHANICS ========== -->
 <section id="biomech">
   <div class="sec-head">
-    <div><h2>Biomechanics · pitch comparison</h2><p>Mount point for the Baseball Sciences skeletal viewer. Their component receives two pitch IDs and the phase to show. This stand-in overlays the four-seam (solid) and the comparison pitch (dashed); arm-angle differences are drawn at 3× for visibility.</p></div>
+    <div><h2>Biomechanics · pitch comparison<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>Mount point for the Baseball Sciences skeletal viewer. Their component receives two pitch IDs and the phase to show. This stand-in overlays the four-seam (solid) and the comparison pitch (dashed); arm-angle differences are drawn at 3× for visibility.</p></div>
     <div class="seg" role="group" aria-label="Compare pitch">
       <button v-for="x in arsenal.filter(a => a.code !== 'FF')" :key="x.code" :aria-pressed="bioCode === x.code" @click="bioCode = x.code">FF vs {{ x.code }}</button>
     </div>
@@ -592,7 +599,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== MODEL REGISTRY ========== -->
 <section id="models">
   <div class="sec-head">
-    <div><h2>Models on this page</h2><p>Every grade above is rendered from a registry entry. A new model ships by adding an entry and its outputs, then choosing a page slot.</p></div>
+    <div><h2>Models on this page<span class="tag mock" title="Generated for this mockup. Model names, versions and settings are placeholders.">Mock</span></h2><p>Every grade above is rendered from a registry entry. A new model ships by adding an entry and its outputs, then choosing a page slot.</p></div>
   </div>
   <div class="reg">
     <div class="panel" v-for="m in registryCards" :key="m.key" :class="{ planned: m.status !== 'live' }">

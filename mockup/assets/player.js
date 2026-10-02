@@ -1,9 +1,11 @@
 (async () => {
+// Same version stamp as this script's URL (set by pipeline/build_site.py), so the template isn't served stale.
+const ASSET_V = document.currentScript ? new URL(document.currentScript.src).search : '';
 const { createApp, reactive, ref, computed, watch, nextTick, onMounted } = Vue;
 // Which pitcher and season: player pages at /<slug>/ set window.PITCHER; player.html also takes ?id=.
 const QS = new URLSearchParams(location.search);
 const FIXED_ID = +((window.PITCHER || {}).id || QS.get('id')) || null;
-const [TEMPLATE, SEASONS] = await Promise.all([fetch('assets/player-template.html').then(r => r.text()), Site.seasons()]);
+const [TEMPLATE, SEASONS] = await Promise.all([fetch('assets/player-template.html' + ASSET_V).then(r => r.text()), Site.seasons()]);
 
 /* ---------------- Model registry (drives every grade on the page) ---------------- */
 const MODELS = {

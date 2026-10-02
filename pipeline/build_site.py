@@ -11,7 +11,7 @@ Reads mockup/data/stuff/<season>/index.json for every built season and writes:
 GitHub Pages serves files only, so each player URL is a real page (HTTP 200) rather than a
 404-page redirect. Pitchers who share a name get their MLBAM id appended to the slug.
 """
-import glob, html, json, os, re, sys, unicodedata
+import glob, html, json, os, re, sys, time, unicodedata
 
 RESERVED = {"assets", "data", "model", "mockup", "player", "index"}
 
@@ -35,6 +35,13 @@ def main(site):
     for slug, ps in by_slug.items():
         for p in ps:
             p["slug"] = slug if len(ps) == 1 and slug not in RESERVED else f"{slug}-{p['id']}"
+    # Cache-busting: GitHub Pages lets browsers reuse assets for 10 minutes, so stamp every shared asset
+    # URL with this build's version and new deploys show up on a normal refresh.
+    version = (os.environ.get("GITHUB_SHA") or str(int(time.time())))[:12]
+    for page in ("index.html", "player.html"):
+        path = os.path.join(site, page)
+        text = re.sub(r'((?:src|href)="(?:assets|model)/[^"?]+\.(?:js|css))(\?v=[^"]*)?"', rf'\1?v={version}"', open(path).read())
+        open(path, "w").write(text)
     shell = open(os.path.join(site, "player.html")).read()
     for p in people.values():
         boot = (f'<base href="../">\n<script>window.PITCHER = {json.dumps({"id": p["id"], "slug": p["slug"]})};</script>\n'
@@ -51,7 +58,7 @@ def main(site):
     with open(os.path.join(site, "mockup", "index.html"), "w") as f:
         f.write('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=../">'
                 '<link rel="canonical" href="../"><title>Moved</title><p>The pitcher page moved to the <a href="../">site root</a>.</p>')
-    print(f"{len(people)} pitcher pages for seasons {seasons}")
+    print(f"{len(people)} pitcher pages for seasons {seasons}; asset version {version}")
 
 
 if __name__ == "__main__":

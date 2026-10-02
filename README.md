@@ -30,6 +30,15 @@ Still mock, and tagged on the page: grip presets, the results-adjusted crediting
 
 `.github/workflows/pages.yml` runs the pipeline daily during the season and on every push, then deploys the site. **Settings → Pages → Source must be set to "GitHub Actions."** Run the workflow manually with **validate** checked to recompute 2024 and compare against Nestico's published 2024 leaderboard. **Result (Oct 2, 2026): r = 0.999 and a mean absolute difference of 0.08 tjStuff+ points across 562 pitchers with 300+ pitches**, so the Savant-based pipeline reproduces the published model.
 
+**Split-half check** (fit on odd days, test on even days; pitchers with 200+ pitches in each half):
+
+| | 2025 (465 pitchers) | 2026 (461 pitchers) |
+|---|---|---|
+| Stability, first half vs second half: Stuff / Location / Pitching / actual run value | 0.98 / 0.63 / 0.94 / 0.23 | 0.97 / 0.70 / 0.90 / 0.13 |
+| Predicts second-half run value: **Pitching** / Stuff / Location / first-half results | **0.29** / 0.27 / 0.02 / 0.23 | **0.26** / 0.24 / 0.02 / 0.13 |
+| Location smoothing width chosen | 0.3 ft | 0.3 ft |
+| Location weight in the Pitching blend | 30% of fitted | 40% of fitted |
+
 Data © MLB Advanced Media, used for non-commercial purposes.
 
 ## Page tour

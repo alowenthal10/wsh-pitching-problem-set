@@ -1,0 +1,9 @@
+reference.json is derived from the OpenBiomechanics Project by Driveline Baseball
+(https://github.com/drivelineresearch/openbiomechanics, dataset-v1 release: pitching_landmarks.zip,
+SHA-256 efcc078d5d8e77ed1fbf0b9f6a78f750c57a624165f71f30e34142b74db7ec22, and poi_metrics.csv).
+
+Changes: selected the fastest pitch in each 5-degree arm-angle bucket per throwing hand, resampled each
+delivery to 72 frames, and rotated joint centers into a pitcher-centered frame (pipeline/obp_reference.py).
+
+Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0):
+https://creativecommons.org/licenses/by-nc-sa/4.0/

@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 import location_model as LM
+import traits as TR
 
 warnings.filterwarnings("ignore")
 
@@ -237,6 +238,7 @@ def pitcher_json(pid, g, scales, rng, extra=None):
             "stuff_grade": r(to_grade(tj, sc), 1),
             **({} if "loc" not in p else {**model_fields(p, "loc", extra["loc"], pt), **model_fields(p, "pitching", extra["pitching"], pt)}),
             "t40": r(movement_time(p), 4),
+            "release": TR.pitch_release(p),
             "loc": {"all": loc_stats(p), "R": loc_stats(p[p["stand"] == "R"]) if "stand" in p else None,
                     "L": loc_stats(p[p["stand"] == "L"]) if "stand" in p else None},
             "sample": sample,
@@ -262,6 +264,7 @@ def pitcher_json(pid, g, scales, rng, extra=None):
             "actual_runs_above_avg": r((g["rv"] - extra["rv_mean"]).sum(), 2) if g["rv"].notna().any() else None,
         }),
         "months": months, "pitches": pitches,
+        "traits": extra.get("traits", {}).get(int(pid)),
     }
 
 
@@ -295,6 +298,11 @@ def build(df, model, season, out_dir, model_meta):
         print(f"{season}: split-half validation {json.dumps(validation)}")
     else:
         print("Statcast columns for the Location model are missing; building Stuff only")
+    df = TR.add_trait_features(df)
+    if "rv" in df:
+        extra["traits"] = TR.pitcher_traits(df)
+    design = TR.league_design(df)
+    print(f"{season}: traits for {len(extra.get('traits', {}))} pitchers; design comps for {sorted(design['comps'])}; SSW ranges {design['ssw']}")
     rng = np.random.default_rng(season)
     d = os.path.join(out_dir, "stuff", str(season))
     os.makedirs(d, exist_ok=True)
@@ -310,7 +318,7 @@ def build(df, model, season, out_dir, model_meta):
         "season": season, "built_at": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "through": str(pd.to_datetime(df["game_date"]).max().date()), "pitches": int(len(df)),
         "source": "Statcast via Baseball Savant (MLB Advanced Media). Non-commercial use.",
-        "model": model_meta, "xrv_mean": xmean, "xrv_sd": xsd, "scales": scales, "location": loc_meta,
+        "model": model_meta, "xrv_mean": xmean, "xrv_sd": xsd, "scales": scales, "location": loc_meta, "design": design,
         "pitchers": sorted(index, key=lambda x: -x["n"]),
     }
     with open(os.path.join(d, "index.json"), "w") as f:

@@ -136,6 +136,7 @@ Priority: **P0** = required for launch, **P1** = launch if possible, **P2** = la
 |---|---|---|
 | B-1 | Slot that mounts the Baseball Sciences viewer with two pitch IDs (four-seam vs. comparison pitch) and a delivery phase. | P0 (Phase 3) |
 | B-2 | Release-metric comparison table (arm angle, release height and side, extension, trunk rotation) with thresholds that flag a possible tell. | P1 |
+| B-2a | *Prototype:* until the Baseball Sciences viewer exists, the public prototype plays a real motion-captured reference delivery (Driveline OpenBiomechanics, CC BY-NC-SA 4.0) matched on throwing hand and arm angle, and fills the release table from Statcast. | Done |
 | B-3 | The viewer and the page share state: picking a pitch on the page updates the viewer, and scrubbing the viewer updates the phase label. | P1 |
 
 ### 5.8 Platform

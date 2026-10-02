@@ -409,7 +409,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== PITCH LAB ========== -->
 <section id="lab">
   <div class="sec-head">
-    <div><h2>Pitch Lab<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Runs tjStuff+ in your browser on a sample of his actual pitches.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Real model' : 'Mock' }}</span></h2><p>{{ realStuff ? 'What happens to a pitch\'s Stuff grade if its shape changes. The sliders re-score a sample of his actual pitches with tjStuff+ in your browser. Grip presets are hand-entered movement changes until a seam-to-movement model exists.' : 'What happens to a pitch\'s Stuff grade if its shape changes. Grip and seam-orientation presets come from a seam-to-movement model (planned, Baseball Sciences); the sliders query the Stuff model directly.' }}</p></div>
+    <div><h2>Pitch Lab<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Runs tjStuff+ in your browser on a sample of his actual pitches.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Real model' : 'Mock' }}</span></h2><p>{{ realStuff ? 'What happens to a pitch\'s Stuff grade if its shape changes. The sliders re-score a sample of his actual pitches with tjStuff+ in your browser. ' + (realDesign ? 'Presets come from league data: the shape of the best pitches of this type from similar arm angles, and the seam-shifted wake of the league\'s top quarter. Whether he can throw them is a question for the pitching staff.' : 'Grip presets are hand-entered movement changes until a seam-to-movement model exists.') : 'What happens to a pitch\'s Stuff grade if its shape changes. Grip and seam-orientation presets come from a seam-to-movement model (planned, Baseball Sciences); the sliders query the Stuff model directly.' }}</p></div>
     <div class="seg" role="group" aria-label="Pitch">
       <button v-for="x in arsenal" :key="x.code" :aria-pressed="labCode === x.code" @click="setLab(x.code)">{{ x.code }}</button>
     </div>
@@ -417,7 +417,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="lab">
     <div class="panel lab-controls">
       <div>
-        <div class="eyebrow" style="margin-bottom:8px">Grip &amp; seam orientation · {{ labPitch.name }}<span class="tag mock" title="Hand-entered movement changes, not model output.">Mock presets</span></div>
+        <div class="eyebrow" style="margin-bottom:8px">Grip &amp; seam orientation · {{ labPitch.name }}<span class="tag" :class="tag('presets').c" :title="tag('presets').t">{{ tag('presets').l }}</span></div>
         <div class="presets">
           <button v-for="pr in presetsFor(labCode)" :key="pr.id" class="preset" :aria-pressed="preset === pr.id" @click="applyPreset(pr)">
             <span class="t"><span>{{ pr.name }}</span><span class="mono small muted">{{ presetDeltaText(pr) }}</span></span>
@@ -535,12 +535,12 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
     </div>
     <div class="panel">
       <div class="callout"><b>{{ adjusted.label }}</b><span>{{ adjusted.long }}</span></div>
-      <h3 style="margin-top:16px">Traits the pitch models don't see<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h3>
-      <p class="small muted">Candidate explanations for a persistent gap, graded on the same scale. Each is a future model slot.</p>
+      <h3 style="margin-top:16px">Traits the pitch models don't see<span class="tag" :class="tag('traits').c" :title="tag('traits').t">{{ tag('traits').l }}</span></h3>
+      <p class="small muted">Candidate explanations for a persistent gap, graded against qualified pitchers (300+ pitches). Each is a future model slot.</p>
       <div class="drivers">
         <div class="driver" v-for="d in drivers" :key="d.name">
-          <div><b>{{ d.name }}</b><div class="small muted">{{ d.note }}</div></div>
-          <span class="g" :style="gStyle(d.grade)">{{ show(d.grade) }}</span>
+          <div><b>{{ d.name }}</b><span v-if="d.value" class="mono small muted"> · {{ d.value }}</span><div class="small muted">{{ d.note }}</div></div>
+          <span v-if="d.grade != null" class="g" :style="gStyle(d.grade)">{{ show(d.grade) }}</span><span v-else class="small muted">n/a</span>
         </div>
       </div>
     </div>
@@ -601,7 +601,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
 <!-- ========== BIOMECHANICS ========== -->
 <section id="biomech">
   <div class="sec-head">
-    <div><h2>Biomechanics · pitch comparison<span class="tag mock" title="Generated for this mockup. Not real data.">Mock</span></h2><p>Mount point for the Baseball Sciences skeletal viewer. Their component receives two pitch IDs and the phase to show. This stand-in overlays the four-seam (solid) and the comparison pitch (dashed); arm-angle differences are drawn at 3× for visibility.</p></div>
+    <div><h2>Biomechanics · pitch comparison<span class="tag" :class="tag('bio').c" :title="tag('bio').t">{{ tag('bio').l }}</span></h2><p>{{ obpRef ? 'Mount point for the Baseball Sciences skeletal viewer, which would show his own deliveries. Until then it plays a real motion-captured reference delivery with the closest arm angle and the same throwing hand. The dashed arm shows the comparison pitch, rotated by his real arm-angle difference at 3× so it is visible.' : 'Mount point for the Baseball Sciences skeletal viewer. Their component receives two pitch IDs and the phase to show. This stand-in overlays the four-seam (solid) and the comparison pitch (dashed); arm-angle differences are drawn at 3× for visibility.' }}</p></div>
     <div class="seg" role="group" aria-label="Compare pitch">
       <button v-for="x in arsenal.filter(a => a.code !== fbCode)" :key="x.code" :aria-pressed="bioCode === x.code" @click="bioCode = x.code">{{ fbCode }} vs {{ x.code }}</button>
     </div>
@@ -609,35 +609,30 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; display: grid; 
   <div class="bio-grid">
     <div class="panel" style="padding:0;overflow:hidden">
       <div class="viewer">
-        <svg viewBox="0 0 400 300" role="img" aria-label="Skeleton overlay">
-          <line x1="0" x2="400" y1="268" y2="268" stroke="var(--line)" stroke-width="2"></line>
-          <path d="M 60 268 Q 120 252 190 268" fill="var(--line)" opacity=".6"></path>
-          <g>
-            <line v-for="(b, bi) in BONES" :key="bi" :x1="skeletons[0][b[0]][0]" :y1="skeletons[0][b[0]][1]" :x2="skeletons[0][b[1]][0]" :y2="skeletons[0][b[1]][1]"
-                  stroke="var(--ink)" :stroke-width="b[2] || 5" stroke-linecap="round" :opacity="['el','wr'].includes(b[1]) ? 1 : .55"></line>
-            <circle :cx="skeletons[0].head[0]" :cy="skeletons[0].head[1]" r="11" fill="var(--surface-2)" stroke="var(--ink)" stroke-width="3" opacity=".55"></circle>
-          </g>
-          <g>
-            <polyline fill="none" :stroke="bioColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5"
-                      :points="['sh','el','wr'].map(j => skeletons[1][j].join(',')).join(' ')"></polyline>
-          </g>
-          <g v-for="(sk, si) in skeletons" :key="'ball' + si">
-            <circle :cx="sk.wr[0]" :cy="sk.wr[1]" r="5" :fill="si === 0 ? 'var(--ink)' : bioColor"></circle>
-            <text :x="sk.wr[0] + (p.throws === 'L' ? -9 : 9)" :y="sk.wr[1] + (si === 0 ? -6 : 12)" :text-anchor="p.throws === 'L' ? 'end' : 'start'" style="font-weight:600">{{ si === 0 ? 'FF' : bioCode }}</text>
+        <svg viewBox="0 0 400 300" role="img" aria-label="Delivery skeleton">
+          <line x1="0" x2="400" y1="270" y2="270" stroke="var(--line)" stroke-width="2"></line>
+          <line v-for="(b, bi) in bioView.bones" :key="bi" :x1="b[0]" :y1="b[1]" :x2="b[2]" :y2="b[3]" stroke="var(--ink)" :stroke-width="b[4]" stroke-linecap="round" :opacity="b[5]"></line>
+          <circle :cx="bioView.head[0]" :cy="bioView.head[1]" r="11" fill="var(--surface-2)" stroke="var(--ink)" stroke-width="3" opacity=".55"></circle>
+          <polyline fill="none" :stroke="bioColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" :points="bioView.arm2.map(q => q.join(',')).join(' ')"></polyline>
+          <g v-for="(bl, bi) in bioView.balls" :key="'ball' + bi">
+            <circle :cx="bl.x" :cy="bl.y" r="5" :fill="bl.color"></circle>
+            <text :x="bl.x + bl.dx" :y="bl.y + bl.dy" :text-anchor="bl.dx < 0 ? 'end' : 'start'" style="font-weight:600">{{ bl.label }}</text>
           </g>
           <text x="12" y="20">{{ phaseName }}</text>
-          <text x="388" y="20" text-anchor="end">side view · {{ p.throws === 'L' ? 'LHP' : 'RHP' }}</text>
+          <text x="388" y="20" text-anchor="end">{{ bioViewMode === 'side' ? 'side view' : "catcher's view" }} · {{ p.throws === 'L' ? 'LHP' : 'RHP' }}</text>
         </svg>
       </div>
       <div class="scrub">
         <button class="btn primary" @click="togglePlay">{{ playing ? 'Pause' : 'Play' }}</button>
         <input id="phase-scrub" type="range" min="0" max="4" step="0.01" v-model.number="phase" aria-label="Delivery phase">
+        <div class="seg" role="group" aria-label="View"><button :aria-pressed="bioViewMode === 'side'" @click="bioViewMode = 'side'">Side</button><button :aria-pressed="bioViewMode === 'catcher'" @click="bioViewMode = 'catcher'">Catcher</button></div>
       </div>
       <div class="phase-labels"><span v-for="ph in PHASES" :key="ph">{{ ph }}</span></div>
+      <p class="small muted" style="padding:0 12px 12px" v-if="obpRef">Reference: {{ obpRef.throws }}HP, {{ obpRef.speed.toFixed(1) }} mph, arm angle {{ obpRef.arm_angle.toFixed(0) }}° (his: {{ fbArm != null ? fbArm.toFixed(0) + '°' : 'n/a' }}). Not his own motion. Data: <a href="https://github.com/drivelineresearch/openbiomechanics" target="_blank" rel="noopener">Driveline OpenBiomechanics Project</a>, CC BY-NC-SA 4.0, resampled and rotated.</p>
     </div>
     <div class="panel">
       <h3>{{ fbCode }} vs {{ bioCode }} at release</h3>
-      <p class="small muted" style="margin-bottom:10px">Differences a hitter could read. Large gaps on a secondary pitch can tip it.</p>
+      <p class="small muted" style="margin-bottom:10px">Differences a hitter could read. Large gaps on a secondary pitch can tip it.{{ realBio ? ' Statcast averages for this season.' : '' }}</p>
       <div class="tablewrap">
         <table>
           <thead><tr><th>Metric</th><th class="r">{{ fbCode }}</th><th class="r">{{ bioCode }}</th><th class="r">Δ</th></tr></thead>
@@ -859,7 +854,8 @@ createApp({
     const tj = ref(null);   // tjStuff+ evaluator, loaded on demand
     const realStuff = computed(() => !!(stuffData.value && stuffMeta.value));
     const realModels = computed(() => realStuff.value && stuffData.value.loc_plus != null && !!stuffMeta.value.location);
-    const locSurf = ref(null);                       // real Location model surfaces (data/location/<season>/surfaces.json)
+    const locSurf = ref(null);
+    const obp = ref(null), bioViewMode = ref('side');   // Driveline OBP reference deliveries                       // real Location model surfaces (data/location/<season>/surfaces.json)
     const hist = ref({});                            // {season: pitcher model data} for Results vs. model
     const lgEra = ref({});                           // {season: league ERA} from the Stats API
     // One place that decides every Real / Mock tag on the page.
@@ -870,7 +866,8 @@ createApp({
     function tag(key) {
       const S = realStuff.value, M = realModels.value;
       switch (key) {
-        case 'badge': return { t: M ? 'Every grade is real. Grip presets, the results-adjusted formula, unmodeled traits, and biomechanics are still mock.' : S ? 'Stuff grades and pitch data are real (Statcast, tjStuff+). Location and Pitching grades, heatmap values, grip presets, and biomechanics are mock.' : 'Every grade, pitch metric, heatmap, projection and biomechanic is generated for this mockup. Only bio and season stats are real.',
+        case 'badge': if (M && stuffData.value?.traits && realDesign.value) return { t: 'Every grade, trait, preset, and release metric is real. The results-adjusted crediting formula is a placeholder, and the skeleton is a reference delivery rather than his own.', l: 'Results-adjusted formula is a placeholder' };
+          return { t: M ? 'Every grade is real. Grip presets, the results-adjusted formula, unmodeled traits, and biomechanics are still mock.' : S ? 'Stuff grades and pitch data are real (Statcast, tjStuff+). Location and Pitching grades, heatmap values, grip presets, and biomechanics are mock.' : 'Every grade, pitch metric, heatmap, projection and biomechanic is generated for this mockup. Only bio and season stats are real.',
           l: M ? 'Grip presets & biomechanics are mock' : S ? 'Location & Pitching grades are mock' : 'Grades & pitch data are mock' };
         case 'header': return S ? TAG.real('Statcast data') : TAG.mock();
         case 'g_stuff': return S ? TAG.real('tjStuff+ on Statcast') : TAG.mock();
@@ -880,7 +877,10 @@ createApp({
         case 'trend': return M ? TAG.real('Monthly grades from Statcast') : S ? TAG.part('Stuff line is real; Pitching and Location lines are mock.') : TAG.mock();
         case 'arsenal': return M ? TAG.real('Statcast, tjStuff+, and this project\'s Location and Pitching models') : S ? TAG.part('Pitch types, shape, results, and Stuff grades are real. Pitch and Loc grades are mock.') : TAG.mock();
         case 'locations': return M ? TAG.real('Location model surfaces and his actual locations. The raw-binned view is simulated.') : S ? TAG.part('Where he throws it is real. The color surface is mock until the Location model is built.') : TAG.mock();
-        case 'results': return M ? TAG.part('Expected ERA, grades, ERA, and FIP are real. The unmodeled traits list is mock.') : TAG.part('Expected ERA, grades and traits are mock. ERA and FIP are real when live data loads.');
+        case 'results': return M && stuffData.value?.traits ? TAG.part('Everything here is real except the results-adjusted crediting formula, a placeholder for R&D.') : M ? TAG.part('Expected ERA, grades, ERA, and FIP are real. The unmodeled traits list is mock.') : TAG.part('Expected ERA, grades and traits are mock. ERA and FIP are real when live data loads.');
+        case 'bio': return obpRef.value ? TAG.part('Release table is his real Statcast data. The skeleton is a real motion-captured reference delivery (Driveline OBP), not his own.') : realBio.value ? TAG.part('Release table is real Statcast data. The skeleton is a stand-in.') : TAG.mock();
+        case 'traits': return stuffData.value?.traits ? TAG.real('Computed from Statcast, graded against pitchers with 300+ pitches') : TAG.mock();
+        case 'presets': return realDesign.value ? { c: 'real', l: 'Data-based presets', t: 'Built from league Statcast data. Whether he can throw these shapes is a question for the pitching staff.' } : { c: 'mock', l: 'Mock presets', t: 'Hand-entered movement changes, not model output.' };
         case 'models': return M ? TAG.real('Stuff, Location, and Pitching are working models. The seam model and open slot are concepts.') : S ? TAG.part('Stuff is tjStuff+ (real). Location and Pitching are placeholders.') : TAG.mock('Model names, versions and settings are placeholders.');
       }
       return TAG.mock();
@@ -1029,6 +1029,7 @@ createApp({
       return { grade, gap, persistent, label, long, text, cred };
     });
     const drivers = computed(() => {
+      if (stuffData.value?.traits) return stuffData.value.traits;
       const r = rng((p.id || 7) + 3);
       return [
         { name: 'Extension & perceived velocity', grade: toGrade(100 + (p.extension - 6.4) * 25, 10), note: `${p.extension.toFixed(1)} ft extension. The Stuff model uses release, but not hitter reaction time.` },
@@ -1052,7 +1053,7 @@ createApp({
       }, {
         title: `${worst.name} is the lever: ${show(worst.grades.stuff)} stuff, ${show(worst.grades.location)} location.`,
         body: realStuff.value ? ` It is ${pct(worst.usage)} of his pitches. Test shape changes on the real model in Pitch Lab.` : ` ${worst.n < MODELS.location.stableN ? 'Location grade is not yet stable. ' : ''}Pitch Lab projects a seam-shifted version near a 50.`,
-        action: { label: `Open ${worst.code} in Pitch Lab`, fn: () => { setLab(worst.code); const pr = (PRESETS[worst.code] || [])[1]; if (pr) applyPreset(pr); go('lab'); } },
+        action: { label: `Open ${worst.code} in Pitch Lab`, fn: () => { setLab(worst.code); const pr = presetsFor(worst.code)[1]; if (pr && pr.id !== 'ssw0') applyPreset(pr); go('lab'); } },
       }, {
         title: adjusted.value.persistent ? adjusted.value.label + '.' : 'Results match the grades.',
         body: ' ' + adjusted.value.text,
@@ -1065,7 +1066,31 @@ createApp({
 
     /* ---------- Pitch Lab ---------- */
     const labPitch = computed(() => byCode(labCode.value));
-    const presetsFor = c => PRESETS[c] || [{ id: 'cur', name: 'Current grip', note: 'As thrown', d: { velo: 0, ivb: 0, hb: 0 } }];
+    const realDesign = computed(() => realStuff.value && !!stuffMeta.value.design);
+    const capD = d => ({ velo: +clamp(d.velo, -4, 4).toFixed(1), ivb: +clamp(d.ivb, -10, 10).toFixed(1), hb: +clamp(d.hb, -10, 10).toFixed(1) });
+    // Data-based presets: shape of the league's best pitches of this type from similar arm angles, and top-quarter seam effect.
+    function designPresets(c) {
+      const x = byCode(c), P = x?.real, D = stuffMeta.value.design, d = stuffData.value, out = [{ id: 'cur', name: 'Current shape', note: 'As thrown this season', d: { velo: 0, ivb: 0, hb: 0 } }];
+      if (!P) return out;
+      const arm = P.release?.arm ?? fbArm.value, bucket = arm != null ? String(Math.floor(arm / 10) * 10) : null;
+      const comp = D.comps[c] && (D.comps[c][bucket] || D.comps[c].all);
+      if (comp) {
+        const isFb = c === d.fastball.type, from = D.comps[c][bucket] ? `${bucket}–${+bucket + 9}° arm angles` : 'all arm angles';
+        out.push({ id: 'comp', name: `Shape of the best ${x.name.toLowerCase()}s`, note: `Average shape of the top quarter of ${x.name.toLowerCase()}s by tjStuff+, from pitchers with ${from} (${comp.n} pitchers).`,
+          d: capD({ velo: isFb ? 0 : d.fastball.speed + comp.speed_diff - x.velo, ivb: comp.ivb - x.ivb, hb: comp.hb - x.hb }) });
+      }
+      const L = D.ssw[c], his = P.release?.ssw_dev;
+      if (L && his != null) {
+        const target = L.p50 >= 0 ? L.p75 : L.p25, delta = target - his;
+        if (Math.abs(delta) >= 2) {
+          const th = Math.atan2(x.hb, x.ivb) + delta * Math.PI / 180, m = Math.hypot(x.hb, x.ivb);
+          out.push({ id: 'ssw', name: 'Seam effect like the league\'s top quarter', note: `His seam-shifted wake moves this pitch ${his.toFixed(0)}° from what its spin implies; the league's top quarter of ${x.name.toLowerCase()}s gets ${target.toFixed(0)}°. Rotates his movement by ${delta.toFixed(0)}°.`,
+            d: capD({ velo: 0, ivb: m * Math.cos(th) - x.ivb, hb: m * Math.sin(th) - x.hb }) });
+        } else out.push({ id: 'ssw0', name: 'Seam effect', note: `His seam-shifted wake (${his.toFixed(0)}°) is already in line with the league's top quarter for this pitch.`, d: { velo: 0, ivb: 0, hb: 0 } });
+      }
+      return out;
+    }
+    const presetsFor = c => realDesign.value ? designPresets(c) : (PRESETS[c] || [{ id: 'cur', name: 'Current grip', note: 'As thrown', d: { velo: 0, ivb: 0, hb: 0 } }]);
     const presetDeltaText = pr => pr.id === 'cur' ? 'as thrown' : `${signed(pr.d.velo, 1)} mph · ${signed(pr.d.ivb, 1)} IVB · ${signed(pr.d.hb, 1)} HB`;
     function setLab(c) { labCode.value = c; resetLab(); }
     function resetLab() { preset.value = 'cur'; labDelta.velo = 0; labDelta.ivb = 0; labDelta.hb = 0; }
@@ -1386,8 +1411,60 @@ createApp({
       for (const j of J) out[j] = [flip ? 400 - (40 + out[j][0] * 3.2) : 40 + out[j][0] * 3.2, 268 - out[j][1] * 2.35];
       return out;
     }
-    const skeletons = computed(() => [pose(phase.value, null), pose(phase.value, bioCode.value)]);
+    // ---- skeleton view model: real reference delivery (Driveline OBP) when loaded, else the stand-in ----
+    const OBP_BONES = [['rear_ankle_jc', 'rear_knee_jc', 4], ['rear_knee_jc', 'rear_hip', 4], ['lead_ankle_jc', 'lead_knee_jc', 4], ['lead_knee_jc', 'lead_hip', 4],
+      ['rear_hip', 'lead_hip', 4], ['thorax_dist', 'thorax_prox', 6], ['thorax_prox', 'glove_shoulder_jc', 4], ['glove_shoulder_jc', 'glove_elbow_jc', 4],
+      ['glove_elbow_jc', 'glove_wrist_jc', 4], ['glove_wrist_jc', 'glove_hand_jc', 3], ['thorax_prox', 'shoulder_jc', 4], ['shoulder_jc', 'elbow_jc', 5],
+      ['elbow_jc', 'wrist_jc', 5], ['wrist_jc', 'hand_jc', 4]];
+    const ARM_JOINTS = ['elbow_jc', 'wrist_jc', 'hand_jc'];
+    const fbArm = computed(() => stuffData.value?.pitches.find(x => x.code === fbCode.value)?.release?.arm ?? p.armAngle ?? null);
+    const armDelta = c => { const q = stuffData.value?.pitches.find(x => x.code === c)?.release?.arm; return q != null && fbArm.value != null ? q - fbArm.value : (realStuff.value ? 0 : bioOf(c).arm); };
+    const obpRef = computed(() => {
+      const d = obp.value; if (!d) return null;
+      const same = d.references.filter(r => r.throws === p.throws), pool = same.length ? same : d.references, target = fbArm.value ?? 40;
+      return pool.reduce((best, r) => Math.abs(r.arm_angle - target) < Math.abs(best.arm_angle - target) ? r : best, pool[0]);
+    });
+    function refFrame(ref, t) {   // phase 0..4 -> frame, through the delivery's real event times
+      const e = ref.events, keys = [0, e.foot_plant, e.max_er, e.release, 1], i = Math.min(3, Math.floor(t)), f = keys[i] + (keys[i + 1] - keys[i]) * (t - i);
+      const pos = f * (ref.frames.length - 1), a = Math.floor(pos), b = Math.min(ref.frames.length - 1, a + 1), u = pos - a;
+      const out = {}, J = obp.value.joints;
+      J.forEach((j, k) => { out[j] = [0, 1, 2].map(c => ref.frames[a][3 * k + c] * (1 - u) + ref.frames[b][3 * k + c] * u); });
+      return { joints: out, nearRelease: Math.exp(-(((f - e.release) / 0.04) ** 2)) };
+    }
+    const bioView = computed(() => {
+      const ref = obpRef.value, L = p.throws === 'L', col = bioColor.value;
+      if (ref) {
+        const { joints, nearRelease } = refFrame(ref, phase.value), S = 112;
+        const proj = q => bioViewMode.value === 'side'
+          ? [L ? 400 - (50 + q[0] * S) : 50 + q[0] * S, 270 - q[2] * S]
+          : [L ? 200 + q[1] * S : 200 - q[1] * S, 270 - q[2] * S];
+        // comparison arm: rotate elbow-wrist-hand about the shoulder in the catcher's (arm side, up) plane
+        const ang = armDelta(bioCode.value) * 3 * nearRelease * Math.PI / 180, sh = joints.shoulder_jc;
+        const rot = q => { const ds = q[1] - sh[1], du = q[2] - sh[2]; return [q[0], sh[1] + ds * Math.cos(ang) - du * Math.sin(ang), sh[2] + ds * Math.sin(ang) + du * Math.cos(ang)]; };
+        const spine = [0, 1, 2].map(c => joints.thorax_prox[c] - joints.thorax_dist[c]), n = Math.hypot(...spine) || 1;
+        const head = proj(joints.thorax_prox.map((v, c) => v + 0.24 * spine[c] / n));
+        const hand1 = proj(joints.hand_jc), hand2 = proj(rot(joints.hand_jc));
+        return {
+          bones: OBP_BONES.map(([a, b, w]) => [...proj(joints[a]), ...proj(joints[b]), w, ARM_JOINTS.includes(b) ? 1 : .55]),
+          head, arm2: ['shoulder_jc', ...ARM_JOINTS].map(j => proj(j === 'shoulder_jc' ? joints[j] : rot(joints[j]))),
+          balls: [{ x: hand1[0], y: hand1[1], color: 'var(--ink)', label: fbCode.value, dx: L ? -9 : 9, dy: -6 }, { x: hand2[0], y: hand2[1], color: col, label: bioCode.value, dx: L ? -9 : 9, dy: 12 }],
+        };
+      }
+      const A = pose(phase.value, null), B = pose(phase.value, bioCode.value);
+      return {
+        bones: BONES.map(b => [A[b[0]][0], A[b[0]][1], A[b[1]][0], A[b[1]][1], b[2] || 5, ['el', 'wr'].includes(b[1]) ? 1 : .55]),
+        head: A.head, arm2: ['sh', 'el', 'wr'].map(j => B[j]),
+        balls: [{ x: A.wr[0], y: A.wr[1], color: 'var(--ink)', label: fbCode.value, dx: L ? -9 : 9, dy: -6 }, { x: B.wr[0], y: B.wr[1], color: col, label: bioCode.value, dx: L ? -9 : 9, dy: 12 }],
+      };
+    });
+    const realBio = computed(() => !!stuffData.value?.pitches?.[0]?.release);
     const bioRows = computed(() => {
+      if (realBio.value) {
+        const rel = c => stuffData.value.pitches.find(x => x.code === c)?.release || {}, A = rel(fbCode.value), B = rel(bioCode.value);
+        const row = (label, k, unit, d, flagAt) => A[k] == null || B[k] == null ? null
+          : ({ label, a: A[k].toFixed(d) + unit, b: B[k].toFixed(d) + unit, d: signed(B[k] - A[k], d) + unit, flag: Math.abs(B[k] - A[k]) >= flagAt });
+        return [row('Arm angle', 'arm', '°', 1, 2.5), row('Release height', 'height', ' ft', 2, 0.15), row('Release side', 'side', ' ft', 2, 0.12), row('Extension', 'ext', ' ft', 2, 0.25)].filter(Boolean);
+      }
       const b = bioOf(bioCode.value), base = { arm: p.armAngle ?? 41, relH: 5.9, relS: 2.1, ext: p.extension, trunk: 38 };
       const row = (label, k, unit, d, flagAt) => ({ label, a: base[k].toFixed(d) + unit, b: (base[k] + b[k]).toFixed(d) + unit, d: signed(b[k], d) + unit, flag: Math.abs(b[k]) >= flagAt });
       return [row('Arm angle', 'arm', '°', 1, 2.5), row('Release height', 'relH', ' ft', 2, 0.15), row('Release side', 'relS', ' ft', 2, 0.12), row('Extension', 'ext', ' ft', 2, 0.25), row('Trunk rotation at release', 'trunk', '°', 1, 2.5)];
@@ -1395,8 +1472,8 @@ createApp({
     const bioTell = computed(() => {
       const flags = bioRows.value.filter(r => r.flag).map(r => r.label.toLowerCase());
       return flags.length >= 2
-        ? { flag: true, text: `The ${(byCode(bioCode.value)?.name || bioCode.value).toLowerCase()} comes out with a different ${new Intl.ListFormat('en', { type: 'conjunction' }).format(flags)} than the four-seam. Review video with Baseball Sciences before changing the grip.` }
-        : { flag: false, text: 'Release looks like the four-seam. No tipping concern from these metrics.' };
+        ? { flag: true, text: `The ${(byCode(bioCode.value)?.name || bioCode.value).toLowerCase()} comes out with a different ${new Intl.ListFormat('en', { type: 'conjunction' }).format(flags)} than his ${(byCode(fbCode.value)?.name || 'fastball').toLowerCase()}. Review video with Baseball Sciences before changing the grip.` }
+        : { flag: false, text: `Release looks like his ${(byCode(fbCode.value)?.name || 'fastball').toLowerCase()}. No tipping concern from these metrics.` };
     });
     let raf = 0, last = 0;
     function tick(ts) { if (!playing.value) return; const dt = last ? (ts - last) / 1000 : 0; last = ts; phase.value = (phase.value + dt * 0.9) % 4; raf = requestAnimationFrame(tick); }
@@ -1455,6 +1532,7 @@ createApp({
         const r = await fetch(`data/stuff/${SEASON}/index.json`);
         if (!r.ok) throw new Error(r.status);
         stuffMeta.value = await r.json();
+        fetch('data/biomech/reference.json').then(r => r.ok ? r.json() : null).then(d => { if (d) obp.value = Object.freeze(d); }).catch(() => {});
         if (stuffMeta.value.location) fetch(`data/location/${SEASON}/surfaces.json`).then(r => r.ok ? r.json() : null).then(d => { if (d) locSurf.value = Object.freeze(d); }).catch(() => {});
         fetch('model/tjstuff_v3.json').then(r => r.ok ? r.json() : null).then(m => { if (m && window.TjStuff) tj.value = Object.freeze(new window.TjStuff(m)); }).catch(() => {});
       } catch (e) { stuffMeta.value = null; stuffStatus.value = 'Mock arsenal: real Stuff data has not been built for this site yet.'; }
@@ -1554,9 +1632,9 @@ createApp({
       results, eraTicks, ex, ey, adjusted, drivers, bottomLine,
       labCode, labPitch, preset, labDelta, sliders, lab, presetsFor, presetDeltaText, setLab, resetLab, applyPreset, labCanvas, heatRefs, locRead,
       TX_CATS, TX_FILTERS, txFilter, txAll, txCounts, txFiltered, txShown, txSummary, txTimeline,
-      bioCode, bioColor, phase, phaseName, playing, togglePlay, skeletons, bioRows, bioTell, registryCards,
+      bioCode, bioColor, phase, phaseName, playing, togglePlay, bioRows, bioTell, registryCards,
       show, gStyle, gradeBg, gradeInk, barW, pct, signed, roleFor, go, loadPitcher,
-      realStuff, realModels, stuffMeta, stuffStatus, fbCode, trendPts, tag,
+      realStuff, realModels, stuffMeta, stuffStatus, fbCode, trendPts, tag, bioView, bioViewMode, obpRef, fbArm, realBio, realDesign,
       mx: h => 30 + (h + 24) / 48 * 260, my: v => 270 - (v + 22) / 48 * 260 };
   }
 }).mount('#app');

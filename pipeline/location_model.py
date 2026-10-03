@@ -13,8 +13,8 @@ Location model
 Pitching model
   A least-squares blend of the tjStuff+ prediction and the location value, fit to each pitch's
   actual run value. Location fits same-game outcomes far better than it predicts later ones, so its
-  weight is then shrunk to the share (0-100%) that best predicts second-half run value per pitcher
-  from first-half data. The output is in runs per pitch, which gives model-expected runs and ERA.
+  weight is then shrunk to the share (0-100%) that best predicts run value per pitcher in
+  held-out games (odd- vs even-day split). The output is in runs per pitch, which gives model-expected runs and ERA.
 
 Scaling matches tjStuff+: per-pitch plus = 100 - 10 * z-score (lower run value is better), a
 pitcher's plus is the mean over his pitches, and 20-80 grades use the per-pitch-type spread.

@@ -812,10 +812,10 @@ createApp({
       const L = stuffMeta.value.location, v = L.validation || {}, b = L.blend;
       if (m.key === 'location') return { ...m, model: 'location_value', version: `fit on ${stuffMeta.value.season} Statcast`, status: 'live · real', url: GH, credit: 'This project · method and code',
         desc: 'Smoothed run value of each spot, by pitch type, count state, and batter side, relative to an average location in that situation.',
-        note: `Split-half check (${v.pitchers} pitchers): first-half Location vs second-half Location r = ${v.location_reliability}.` };
+        note: `Split-half check, odd- vs even-day games (${v.pitchers} pitchers): Location in one half vs the other r = ${v.location_reliability}.` };
       return { ...m, model: 'pitching_blend', version: `fit on ${stuffMeta.value.season} Statcast`, status: 'live · real', url: GH, credit: 'This project · method and code',
-        desc: `Blend fit to actual run value: ${b[1].toFixed(3)} × Stuff xRV + ${b[2].toFixed(3)} × Location value. Location's weight is ${Math.round((v.loc_weight ?? 1) * 100)}% of its fitted value, the share that best predicts second-half results. Output is in runs, which drives expected ERA.`,
-        note: `Predicting second-half run value per pitch (${v.pitchers} pitchers): Pitching r = ${v.pitching_predicts_2nd_half}, Stuff ${v.stuff_predicts_2nd_half}, Location ${v.location_predicts_2nd_half}, first-half results ${v.actual_run_value_predicts_2nd_half}.` };
+        desc: `Blend fit to actual run value: ${b[1].toFixed(3)} × Stuff xRV + ${b[2].toFixed(3)} × Location value. Location's weight is ${Math.round((v.loc_weight ?? 1) * 100)}% of its fitted value, the share that best predicts results in held-out games. Output is in runs, which drives expected ERA.`,
+        note: `Predicting run value in held-out games (odd- vs even-day split, ${v.pitchers} pitchers): Pitching r = ${v.pitching_predicts_2nd_half}, Stuff ${v.stuff_predicts_2nd_half}, Location ${v.location_predicts_2nd_half}, actual results ${v.actual_run_value_predicts_2nd_half}.` };
     }
     const registryCards = computed(() => [
       ...Object.values(MODELS).map(m => m.key !== 'stuff' && realModels.value ? realCard(m) : m.key === 'stuff' && realStuff.value ? { ...m, model: 'tjstuff_plus', version: stuffMeta.value.model.version, status: 'live · real',

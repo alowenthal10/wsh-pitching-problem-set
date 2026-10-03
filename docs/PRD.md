@@ -32,7 +32,7 @@ The prototype was built to test the riskiest assumptions before Systems commits 
 | Question | Result | Consequence for this PRD |
 |---|---|---|
 | Can a Stuff model be served faithfully outside its notebook? | The pipeline reproduces Nestico's published 2024 tjStuff+ at **r = 0.999**, mean difference **0.08 points** (562 pitchers). The browser implementation matches Python to 0.0001. | Pitch Lab can run the real model. The R&D → Systems handoff (§7.2) requires a reference test file. |
-| Are model grades better than results for decisions? | Split-half test (fit on odd days, test on even): Pitching predicts second-half run value at **r = 0.26–0.29**. First-half *results* predict at **0.13–0.23**. Stuff is stable across halves at r = 0.97. | Supports the GM's model-first layout. Results stay on the page as context, not as the headline. |
+| Are model grades better than results for decisions? | Split-half test (fit on odd-day games, test on even-day games): the Pitching grade predicts run value in the held-out half at **r = 0.26–0.29**. Actual *results* from the fitting half predict at **0.13–0.23**. Stuff is stable across halves at r = 0.97. | Supports the GM's model-first layout. Results stay on the page as context, not as the headline. |
 | Should the Pitching model weight Location fully? | **No.** Location is a stable skill (r = 0.63–0.70 across halves) but barely predicts future run value on its own (r = 0.02). A full-weight blend predicted *worse* than Stuff alone. Choosing Location's weight out of sample (30–40% of the fitted value) fixed it. | **Requirement M-3:** every blended model's weights are chosen out of sample, and R&D's model card reports split-half results (§7.2). |
 | Can heatmaps be smooth without hiding signal? | Yes. The smoothing width is chosen by out-of-sample fit: 0.3 ft won in both seasons, ahead of 0.2, 0.4, and 0.5 ft. | The R&D analyst's concern is resolved at the source. Surfaces are model output, not binned averages. |
 | Can grip and seam effects be estimated from public data? | Partly. Seam-shifted wake (measured spin axis vs. actual movement) is clean on sinkers (+28°), changeups (+23°), and splitters (+28°). Four-seamers center at 0° once calibrated per throwing hand. It is not meaningful on cutters and sliders. | Seam presets apply to sinkers, changeups, and splitters only. A true grip → movement model is still a Phase 3 dependency. |
@@ -289,7 +289,7 @@ Each handoff is a concrete artifact with a "done" test.
 
 1. **R&D → BPE: model card and validation report** (Phase 0, per model)
    - Inputs, output scale, grade spread by pitch type, stabilization sample, known blind spots, version.
-   - **Split-half report in the prototype's format:** stability across halves and second-half predictive power, next to the prototype's numbers in §2.
+   - **Split-half report in the prototype's format:** stability across halves and predictive power on the held-out half, next to the prototype's numbers in §2.
    - *Done when* the report is in the registry, and each model matches or beats the public baseline, or the gap is explained.
 2. **R&D → Systems: model artifact and reference file** (Phase 0 for Stuff)
    - Serialized model, feature builder, pinned dependencies, and 1,000 inputs with expected outputs.

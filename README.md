@@ -42,7 +42,7 @@ Data © MLB Advanced Media, used for non-commercial purposes.
 | | 2025 | 2026 |
 |---|---|---|
 | Stability across halves: Stuff / Location / Pitching / actual results | 0.98 / 0.63 / 0.94 / 0.23 | 0.97 / 0.70 / 0.90 / 0.13 |
-| Predicts second-half run value: **Pitching** / Stuff / Location / first-half results | **0.29** / 0.27 / 0.02 / 0.23 | **0.26** / 0.24 / 0.02 / 0.13 |
+| Predicts held-out-half run value: **Pitching** / Stuff / Location / actual results | **0.29** / 0.27 / 0.02 / 0.23 | **0.26** / 0.24 / 0.02 / 0.13 |
 
 ## How it's built
 - **Pipeline** ([`pipeline/`](pipeline/)), run daily by [GitHub Actions](.github/workflows/pages.yml):

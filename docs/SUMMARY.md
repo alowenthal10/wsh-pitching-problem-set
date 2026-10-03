@@ -17,7 +17,7 @@
 - **Grades, never percentiles, always with reliability.** A 60 on 150 pitches shouldn't look like a 60 on 2,500. Every grade shows an uncertainty band, and small samples are flagged.
 - **Fix splotchy heatmaps at the source.** Draw the Location model's surface instead of averaging noisy outcomes, with the smoothing width chosen by out-of-sample fit.
 - **Validate everything out of sample.** Two results shaped the product:
-  - Model grades predict a pitcher's second half better than his own first-half results (r 0.26–0.29 vs. 0.13–0.23). That justifies the model-first layout.
+  - Split each season into odd- and even-day games: a pitcher's model grades from one half predict his run value in the other half better than his actual results from the same games do (r 0.26–0.29 vs. 0.13–0.23). That justifies the model-first layout.
   - Location is a stable skill but barely predicts future run value. A full-weight blend made the Pitching model worse, so its weight is now chosen out of sample. The PRD makes this a requirement for every model.
 - **Pitch Lab answers what the Stuff model can.** Movement and velocity changes run the real model. Grip and seam questions need a model that doesn't exist yet, so the presets are league references, labeled as hypotheses.
 - **Keep results next to grades.** Habitual over- and under-performers get multi-season context and graded traits the models miss.

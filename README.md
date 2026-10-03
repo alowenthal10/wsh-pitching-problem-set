@@ -1,29 +1,60 @@
-# Pitcher Page: BPE problem set
+# Pitcher Pages: BPE problem set
 
-| Deliverable | File |
+**Live site:** https://alowenthal10.github.io/wsh-pitching-problem-set/
+
+A league pitching leaderboard plus a page for every qualified pitcher. Pitchers are graded on the 20–80 scale by Stuff, Location, and Pitching models, built on real Statcast data and refreshed daily.
+
+| Deliverable | Where |
 |---|---|
-| 1. Mockup | [`mockup/index.html`](mockup/index.html): open it in a browser. No build step. |
+| 1. Mockup, now a working site | [Live site](https://alowenthal10.github.io/wsh-pitching-problem-set/) · source in [`mockup/`](mockup/) |
 | 2. Product Requirements Document | [`docs/PRD.md`](docs/PRD.md) |
 | 3. Decisions, assumptions, and AI use | [`docs/SUMMARY.md`](docs/SUMMARY.md) |
 
-## Running the mockup
+## The site
+- **Leaderboard** (site root): every pitcher with 50+ pitches; the default view shows 300+. Columns are Pitching, Stuff, and Location grades, IP, ERA, model-expected ERA, and best pitch. Filter by team, role, minimum pitches, and season (2025–2026). The Nationals are highlighted, and filters are kept in the URL.
+- **Pitcher pages** at clean URLs, e.g. [`/cade-cavalli/`](https://alowenthal10.github.io/wsh-pitching-problem-set/cade-cavalli/). Search is available from the header on every page. Each page has:
+  - **Summary:** three grades with reliability bands, a role label, and a written bottom line.
+  - **Arsenal:** per-pitch grades, shape, and results.
+  - **Pitch Lab:** reshape a pitch and re-score it with the real Stuff model in the browser. Presets come from league data.
+  - **Locations:** Location-model surfaces by count and batter side, with where he actually throws the pitch.
+  - **Results vs. model:** expected vs. actual ERA by season, plus graded traits the models miss.
+  - **Availability & transactions:** IL history, options, and moves.
+  - **Biomechanics:** release-point comparison across pitches, with a real motion-captured reference delivery.
 
-Open `mockup/index.html` directly, or serve the folder:
+The one placeholder, labeled on the page, is the formula that credits a persistent results gap in the results-adjusted grade. That's for R&D to own.
 
-```sh
-npx http-server mockup -p 8080   # or: python3 -m http.server -d mockup 8080
-```
+## Data and models
 
-The page loads Vue 3 and fonts from public CDNs. Bio, roster, and season results come from the MLB Stats API, called from your browser. If that API can't be reached, the page shows a synthetic demo pitcher instead.
+| Piece | Source |
+|---|---|
+| Pitch data (~710k pitches per season) | Statcast via Baseball Savant |
+| Bio, rosters, transactions, IP/ERA | MLB Stats API |
+| Stuff model | [tjStuff+](https://github.com/tnestico/tjstuff_plus) by Thomas Nestico (MIT), reproduced from Savant data |
+| Location and Pitching models, traits, presets | This project ([`pipeline/location_model.py`](pipeline/location_model.py), [`pipeline/traits.py`](pipeline/traits.py)) |
+| Reference deliveries | [Driveline OpenBiomechanics](https://github.com/drivelineresearch/openbiomechanics) (CC BY-NC-SA 4.0) |
 
-**All Stuff, Location, and Pitching values, pitch shapes, heatmaps, Pitch Lab projections, and biomechanics in the mockup are illustrative.** They are not outputs of any real model.
+Data © MLB Advanced Media, used for non-commercial purposes.
 
-## Page tour
+**Validation:**
+- **Stuff model:** recomputing 2024 reproduces Nestico's published tjStuff+ at r = 0.999, with a mean difference of 0.08 points across 562 pitchers.
+- **Split-half test** (fit on odd days, test on even days; pitchers with 200+ pitches in each half):
 
-- **Summary:** Pitching, Stuff, and Location grades (20–80) with reliability bands, role label, results-adjusted grade, and a written bottom line.
-- **Arsenal:** per-pitch grades, shape, and results. Selecting a pitch drives the rest of the page.
-- **Pitch Lab:** grip presets and sliders projecting Stuff-grade changes, shown on a Stuff surface with an achievable-shape envelope.
-- **Locations:** Location-model surfaces by count (Ahead, Even, Behind), with the pitcher's actual location contours, plus a raw-binned toggle for comparison.
-- **Results vs. model:** expected vs. actual ERA by season, a persistent over/under-performer flag, and traits the models don't capture.
-- **Biomechanics:** slot for the Baseball Sciences skeletal viewer, with a release-metrics comparison against the four-seam.
-- **Models on this page:** the registry that renders every grade, including planned and open slots.
+| | 2025 | 2026 |
+|---|---|---|
+| Stability across halves: Stuff / Location / Pitching / actual results | 0.98 / 0.63 / 0.94 / 0.23 | 0.97 / 0.70 / 0.90 / 0.13 |
+| Predicts held-out-half run value: **Pitching** / Stuff / Location / actual results | **0.29** / 0.27 / 0.02 / 0.23 | **0.26** / 0.24 / 0.02 / 0.13 |
+
+## How it's built
+- **Pipeline** ([`pipeline/`](pipeline/)), run daily by [GitHub Actions](.github/workflows/pages.yml):
+  - download the season's Statcast data (cached by day);
+  - score every pitch with tjStuff+;
+  - fit the Location and Pitching models;
+  - compute traits;
+  - add team, role, IP, and ERA from the Stats API;
+  - write one JSON file per pitcher;
+  - generate a small page per pitcher;
+  - deploy `mockup/` as the site root.
+- **Front end** ([`mockup/`](mockup/)): Vue 3, no build step. `index.html` is the leaderboard. `player.html` plus `assets/` is the pitcher page. `model/` holds the tjStuff+ model exported to run in the browser.
+- **Run locally:** after a data build, run `npx http-server mockup`, then open `/` or `player.html?id=<MLBAM id>`. Without data, the pitcher page falls back to a labeled synthetic demo.
+- **Validate the Stuff model:** run the workflow manually with **validate** checked.
+- **GitHub Pages:** Settings → Pages → Source must be **GitHub Actions**.

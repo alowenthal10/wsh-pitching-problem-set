@@ -1,0 +1,453 @@
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="./">Pitcher Page</a>
+    <site-search :season="SEASON" :latest="SEASONS[0]"></site-search>
+    <span class="badge" :class="live ? 'live' : 'off'" :title="live ? 'Bio and results from MLB Stats API' : 'MLB Stats API unreachable from this viewer'">{{ live ? 'Live MLB data' : 'Offline demo data' }}</span>
+    <span class="badge warn" :title="tag('badge').t">{{ tag('badge').l }}</span>
+    <nav class="nav" aria-label="Sections">
+      <a href="#summary">Summary</a><a href="#arsenal">Arsenal</a><a href="#lab">Pitch Lab</a><a href="#locations">Locations</a><a href="#context">Results vs. model</a><a href="#transactions">Transactions</a><a href="#biomech">Biomechanics</a><a href="#models">Models</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ========== HEADER ========== -->
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a href="./" @click.prevent="toLeaders()">All pitchers</a>
+  <template v-if="crumbTeam"><span aria-hidden="true">›</span><a :href="leadersHref(crumbTeam.team)">{{ crumbTeam.team_name || crumbTeam.team }}</a></template>
+  <span aria-hidden="true">›</span><span>{{ p.name }}</span>
+</nav>
+<div class="hero">
+  <img v-if="live && shotOk" class="headshot" :src="mlb.headshot(p.id)" :alt="p.name" @error="shotOk = false">
+  <div v-else class="headshot ph" aria-hidden="true">{{ initials }}</div>
+  <div style="min-width:0">
+    <div class="eyebrow">{{ p.team }} · {{ p.throws === 'L' ? 'LHP' : 'RHP' }} · {{ p.role }}</div>
+    <h1>{{ p.name }}</h1>
+    <div class="bio">
+      <span v-if="p.age">Age <b>{{ p.age }}</b></span>
+      <span v-if="p.height">Ht <b>{{ p.height }}</b></span>
+      <span>Arm angle <b class="mono">{{ p.armAngle != null ? p.armAngle.toFixed(1) + '°' : '—' }}</b></span>
+      <span>Extension <b class="mono">{{ p.extension.toFixed(1) }} ft</b></span>
+      <span>Pitches <b class="mono">{{ totalPitches.toLocaleString() }}</b><span class="tag" :class="tag('header').c" :title="tag('header').t">{{ tag('header').l }}</span></span>
+    </div>
+  </div>
+  <div class="controls">
+    <label class="ctl" v-if="!fixedId && teams.length"><span class="eyebrow">Team</span>
+      <select id="team-select" v-model.number="teamId" @change="changeTeam(teamId)">
+        <option v-for="t in teams" :key="t.id" :value="t.id">{{ t.name }}</option>
+      </select>
+    </label>
+    <label class="ctl" v-if="!fixedId && roster.length"><span class="eyebrow">Pitcher</span>
+      <select id="pitcher-select" v-model.number="pitcherId" @change="loadPitcher(pitcherId)">
+        <option v-for="r in roster" :key="r.id" :value="r.id">{{ r.name }}</option>
+      </select>
+    </label>
+    <label class="ctl"><span class="eyebrow">Season</span>
+      <select id="season-select" :value="SEASON" @change="changeSeason(+$event.target.value)">
+        <option v-for="y in (SEASONS.length ? SEASONS : [SEASON])" :key="y" :value="y">{{ y }}</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<!-- ========== SUMMARY / VERDICT ========== -->
+<section id="summary">
+  <div class="verdict">
+    <div class="panel verdict-grades">
+      <div class="vg" v-for="(m, i) in headlineModels" :key="m.key">
+        <div class="eyebrow">{{ m.label }} grade<span class="tag" :class="tag('g_' + m.key).c" :title="tag('g_' + m.key).t">{{ tag('g_' + m.key).l }}</span></div>
+        <div :class="i === 0 ? 'big' : 'mid'" :style="{ color: gradeInk(overall[m.key].grade) }">{{ show(overall[m.key].grade) }}</div>
+        <div class="bar"><i :style="{ width: barW(overall[m.key].grade), background: gradeBg(overall[m.key].grade) }"></i><b></b></div>
+        <div v-if="i === 0" class="role">{{ roleFor(overall.pitching.grade) }}</div>
+        <div class="small muted">{{ m.short }} <span class="mono">{{ overall[m.key].plus.toFixed(0) }}</span> · ±{{ overall[m.key].ci }} grade</div>
+      </div>
+      <div class="adj">
+        <span class="g" :style="gStyle(adjusted.grade)">{{ show(adjusted.grade) }}</span>
+        <p><b>Results-adjusted Pitching grade.</b><span class="tag" :class="tag('adjusted').c" :title="tag('adjusted').t">{{ tag('adjusted').l }}</span> <span class="muted">{{ adjusted.text }}</span></p>
+        <button class="linkbtn" @click="go('context')">See why →</button>
+      </div>
+    </div>
+
+    <div class="panel bottom-line">
+      <div class="eyebrow">Bottom line<span class="tag" :class="tag('bottom').c" :title="tag('bottom').t">{{ tag('bottom').l }}</span></div>
+      <ol>
+        <li v-for="b in bottomLine" :key="b.title">
+          <div><b>{{ b.title }}</b><span class="muted">{{ b.body }}</span>
+            <div v-if="b.action"><button class="linkbtn" @click="b.action.fn()">{{ b.action.label }} →</button></div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="trend">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+        <h3>Grades by month, {{ SEASON }}<span class="tag" :class="tag('trend').c" :title="tag('trend').t">{{ tag('trend').l }}</span></h3>
+        <div class="legend">
+          <span v-for="m in headlineModels" :key="m.key"><i :style="{ background: m.color }"></i>{{ m.label }}{{ realStuff && !realModels ? (m.key === 'stuff' ? ' (real)' : ' (mock)') : '' }}</span>
+        </div>
+      </div>
+      <svg viewBox="0 0 640 190" role="img" aria-label="Monthly grade trend" style="width:100%;height:auto;margin-top:8px">
+        <g v-for="y in [30,40,50,60,70]" :key="y">
+          <line x1="34" x2="630" :y1="gy(y)" :y2="gy(y)" :stroke="y === 50 ? 'var(--muted)' : 'var(--line)'" :stroke-dasharray="y === 50 ? '3 3' : ''" stroke-width="1"></line>
+          <text x="26" :y="gy(y) + 3" text-anchor="end">{{ y }}</text>
+        </g>
+        <text v-for="(mo, i) in months" :key="mo" :x="gx(i)" y="184" text-anchor="middle">{{ mo }}</text>
+        <g v-for="m in headlineModels" :key="m.key">
+          <polyline fill="none" :stroke="m.color" stroke-width="2.5" stroke-linejoin="round" :points="trendPts(m.key).map(d => gx(d.i) + ',' + gy(d.g)).join(' ')"></polyline>
+          <circle v-for="(d, j) in trendPts(m.key)" :key="j" :cx="gx(d.i)" :cy="gy(d.g)" :r="j === trendPts(m.key).length - 1 ? 4.5 : 2.5" :fill="m.color"></circle>
+        </g>
+      </svg>
+    </div>
+    <div class="panel">
+      <h3>{{ results.latest ? results.latest.season + ' results' : 'Season results' }}<span class="tag" :class="live ? 'real' : 'mock'" :title="live ? 'From the MLB Stats API' : 'Synthetic demo pitcher'">{{ live ? 'Real' : 'Mock' }}</span></h3>
+      <p class="small muted" style="margin-bottom:12px">{{ live ? 'MLB Stats API' : 'Demo values' }}. FIP uses a 3.15 constant.</p>
+      <div class="statgrid" v-if="results.latest">
+        <div class="stat"><div class="eyebrow">ERA</div><div class="v">{{ results.latest.era.toFixed(2) }}</div></div>
+        <div class="stat"><div class="eyebrow">FIP</div><div class="v">{{ results.latest.fip.toFixed(2) }}</div></div>
+        <div class="stat"><div class="eyebrow">IP</div><div class="v">{{ results.latest.ipText }}</div></div>
+        <div class="stat"><div class="eyebrow">K%</div><div class="v">{{ pct(results.latest.k / results.latest.bf) }}</div></div>
+        <div class="stat"><div class="eyebrow">BB%</div><div class="v">{{ pct(results.latest.bb / results.latest.bf) }}</div></div>
+        <div class="stat"><div class="eyebrow">HR/9</div><div class="v">{{ (results.latest.hr * 9 / results.latest.ip).toFixed(2) }}</div></div>
+      </div>
+      <p v-else class="muted">No MLB innings on record.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== ARSENAL ========== -->
+<section id="arsenal">
+  <div class="sec-head">
+    <div><h2>Arsenal<span class="tag" :class="tag('arsenal').c" :title="tag('arsenal').t">{{ tag('arsenal').l }}</span></h2><p>Every pitch graded on the 20–80 scale. Dashed grades have not reached the sample where that model stabilizes. Select a row to drive the rest of the page.</p></div>
+  </div>
+  <div class="arsenal">
+    <div class="panel tablewrap" style="padding:8px 12px">
+      <table>
+        <thead>
+          <tr>
+            <th></th><th class="r"></th>
+            <th class="c colgroup-head" colspan="3">Model grades</th>
+            <th class="r colgroup-head" colspan="4">Shape</th>
+            <th class="r colgroup-head" colspan="2">Results</th>
+          </tr>
+          <tr>
+            <th>Pitch</th><th class="r">Usage</th>
+            <th class="c">Pitch</th><th class="c">Stuff</th><th class="c">Loc</th>
+            <th class="r">Velo</th><th class="r">IVB</th><th class="r">HB</th><th class="r">Spin</th>
+            <th class="r">Whiff</th><th class="r">xwOBA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="x in arsenal" :key="x.code" :class="{ sel: x.code === selected }" @click="selected = x.code" tabindex="0" @keydown.enter="selected = x.code" :aria-selected="x.code === selected">
+            <td><span class="pt"><i :style="{ background: x.color }"></i>{{ x.name }}</span></td>
+            <td class="r num">{{ pct(x.usage) }}</td>
+            <td class="c"><span class="g" :class="{ unstable: x.n < MODELS.pitching.stableN }" :style="gStyle(x.grades.pitching)" :title="'Pitching+ ' + x.pitching">{{ show(x.grades.pitching) }}</span></td>
+            <td class="c"><span class="g" :class="{ unstable: x.n < MODELS.stuff.stableN }" :style="gStyle(x.grades.stuff)" :title="'Stuff+ ' + x.stuff">{{ show(x.grades.stuff) }}</span></td>
+            <td class="c"><span class="g" :class="{ unstable: x.n < MODELS.location.stableN }" :style="gStyle(x.grades.location)" :title="'Location+ ' + x.location + ' · n=' + x.n + ' (stabilizes ~' + MODELS.location.stableN + ')'">{{ show(x.grades.location) }}</span></td>
+            <td class="r num">{{ x.velo.toFixed(1) }}</td>
+            <td class="r num">{{ x.ivb.toFixed(1) }}</td>
+            <td class="r num">{{ x.hb.toFixed(1) }}</td>
+            <td class="r num">{{ x.spin }}</td>
+            <td class="r num">{{ x.whiff != null ? pct(x.whiff) : '—' }}</td>
+            <td class="r num">{{ x.xwoba != null ? x.xwoba.toFixed(3) : '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small muted" style="padding:10px 4px 4px">HB is arm-side positive from the pitcher's view. Hover a grade for the raw "plus" value and sample size. Percentiles are intentionally omitted.</p>
+      <p class="small" style="padding:0 4px 4px" v-if="realModels"><b>All real:</b> Statcast through {{ stuffMeta.through }}. Stuff from <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a>; Loc and Pitch from this project's Location and Pitching models (see Models on this page).</p>
+      <p class="small" style="padding:0 4px 4px" v-else-if="realStuff"><b>Real:</b> pitch types, usage, shape, whiff, xwOBA, and Stuff grades (Statcast through {{ stuffMeta.through }}, scored with <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a>). <b>Mock:</b> Pitch and Loc grades.</p>
+      <p class="small muted" style="padding:0 4px 4px" v-else>{{ stuffStatus }}</p>
+    </div>
+    <div class="panel">
+      <h3>Movement</h3>
+      <p class="small muted">Circle size = usage, fill = Stuff grade.</p>
+      <svg viewBox="0 0 300 300" role="img" aria-label="Pitch movement plot" style="width:100%;height:auto;margin-top:6px">
+        <rect x="30" y="10" width="260" height="260" fill="var(--surface-2)"></rect>
+        <g v-for="t in [-20,-10,0,10,20]" :key="'v' + t">
+          <line :x1="mx(t)" :x2="mx(t)" y1="10" y2="270" stroke="var(--line)" :stroke-width="t === 0 ? 1.5 : 1"></line>
+          <text :x="mx(t)" y="284" text-anchor="middle">{{ t }}</text>
+          <line x1="30" x2="290" :y1="my(t)" :y2="my(t)" stroke="var(--line)" :stroke-width="t === 0 ? 1.5 : 1"></line>
+          <text x="24" :y="my(t) + 3" text-anchor="end">{{ t }}</text>
+        </g>
+        <text x="34" y="298">← glove side</text><text x="286" y="298" text-anchor="end">arm side →</text>
+        <g v-for="x in arsenal" :key="x.code" @click="selected = x.code" style="cursor:pointer">
+          <circle :cx="mx(x.hb)" :cy="my(x.ivb)" :r="7 + 26 * Math.sqrt(x.usage) * 0.9" :fill="gradeBg(x.grades.stuff)" :stroke="x.code === selected ? 'var(--ink)' : x.color" :stroke-width="x.code === selected ? 2.5 : 1.5"></circle>
+          <text :x="mx(x.hb)" :y="my(x.ivb) + 3.5" text-anchor="middle" style="font-weight:600" :style="{ fill: gradeInk(x.grades.stuff, true) }">{{ x.code }}</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PITCH LAB ========== -->
+<section id="lab">
+  <div class="sec-head">
+    <div><h2>Pitch Lab<span class="tag" :class="realStuff ? 'real' : 'mock'" :title="realStuff ? 'Runs tjStuff+ in your browser on a sample of his actual pitches.' : 'Generated for this mockup. Not real data.'">{{ realStuff ? 'Real model' : 'Mock' }}</span></h2><p>{{ realStuff ? 'What happens to a pitch\'s Stuff grade if its shape changes. The sliders re-score a sample of his actual pitches with tjStuff+ in your browser. ' + (realDesign ? 'Presets come from league data: the shape of the best pitches of this type from similar arm angles, and the seam-shifted wake of the league\'s top quarter. Whether he can throw them is a question for the pitching staff.' : 'Grip presets are hand-entered movement changes until a seam-to-movement model exists.') : 'What happens to a pitch\'s Stuff grade if its shape changes. Grip and seam-orientation presets come from a seam-to-movement model (planned, Baseball Sciences); the sliders query the Stuff model directly.' }}</p></div>
+    <div class="seg" role="group" aria-label="Pitch">
+      <button v-for="x in arsenal" :key="x.code" :aria-pressed="labCode === x.code" @click="setLab(x.code)">{{ x.code }}</button>
+    </div>
+  </div>
+  <div class="lab">
+    <div class="panel lab-controls">
+      <div>
+        <div class="eyebrow" style="margin-bottom:8px">Grip &amp; seam orientation · {{ labPitch.name }}<span class="tag" :class="tag('presets').c" :title="tag('presets').t">{{ tag('presets').l }}</span></div>
+        <div class="presets">
+          <button v-for="pr in presetsFor(labCode)" :key="pr.id" class="preset" :aria-pressed="preset === pr.id" @click="applyPreset(pr)">
+            <span class="t"><span>{{ pr.name }}</span><span class="mono small muted">{{ presetDeltaText(pr) }}</span></span>
+            <span class="small muted">{{ pr.note }}</span>
+          </button>
+        </div>
+      </div>
+      <div style="display:grid;gap:10px">
+        <div class="eyebrow">Fine-tune shape</div>
+        <div class="slider" v-for="s in sliders" :key="s.key">
+          <label :for="'sl-' + s.key">{{ s.label }}</label>
+          <input :id="'sl-' + s.key" type="range" :min="s.min" :max="s.max" :step="s.step" v-model.number="labDelta[s.key]">
+          <span class="mono small" style="text-align:right">{{ (labDelta[s.key] >= 0 ? '+' : '') + labDelta[s.key].toFixed(1) }} {{ s.unit }}</span>
+        </div>
+        <div><button class="btn" @click="resetLab">Reset to current</button></div>
+      </div>
+      <div class="result">
+        <div><div class="eyebrow">{{ labCode }} Stuff</div>
+          <div class="v"><span>{{ show(labPitch.grades.stuff) }}</span><span class="arrow">→</span><span :style="{ color: gradeInk(lab.grade) }">{{ show(lab.grade) }}</span></div>
+          <div class="small muted mono" v-if="lab.real">tjStuff+ {{ labPitch.stuff.toFixed(0) }} → {{ lab.plus.toFixed(0) }}</div><div class="small muted mono" v-else>{{ lab.lo }}–{{ lab.hi }} range</div>
+        </div>
+        <div><div class="eyebrow">Stuff+ change</div><div class="v mono" style="font-size:30px">{{ signed(lab.dPlus, 1) }}</div><div class="small muted">for this pitch</div></div>
+        <div><div class="eyebrow">Overall {{ lab.real ? 'Stuff' : 'Pitching' }}</div><div class="v mono" style="font-size:30px">{{ signed(lab.dOverall, 1) }}</div><div class="small muted">grade points{{ lab.fbNote ? ', ' + lab.fbNote : ', at ' + pct(labPitch.usage) + ' usage' }}</div></div>
+      </div>
+      <p v-if="lab.outside" class="callout small"><b>{{ lab.real ? 'Far outside his own range.' : 'Outside his achievable range.' }}</b> {{ lab.real ? 'This shape is more than 3 standard deviations from anything he threw this season. The model is extrapolating for him, so treat the projection with caution.' : 'This shape is beyond what pitchers with a similar arm angle and spin profile produce. Treat the projection as extrapolation.' }}</p>
+    </div>
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
+        <h3>Stuff grade surface · {{ labPitch.name }} at {{ (labPitch.velo + labDelta.velo).toFixed(1) }} mph</h3>
+        <div class="scale"><span>20</span><span class="ramp"></span><span>80</span></div>
+      </div>
+      <p class="small muted" style="margin-block:4px 10px">{{ realStuff ? 'tjStuff+ grade for this pitch at each movement, in 1-inch cells and 5-grade bands, holding his other traits fixed. Hollow ring = current. Filled dot = projected. Small dots and dashed ellipse = his actual pitches (2 SD).' : 'Each band is 5 grade points. Hollow ring = current pitch. Filled dot = projected. Dashed ellipse = shapes achievable for his arm angle and spin.' }}</p>
+      <div class="canvas-box"><canvas ref="labCanvas" width="640" height="560" aria-label="Stuff grade by movement"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== LOCATIONS ========== -->
+<section id="locations">
+  <div class="sec-head">
+    <div><h2>Locations · {{ selPitch.name }}<span class="tag" :class="tag('locations').c" :title="tag('locations').t">{{ tag('locations').l }}</span></h2><p>Catcher's view. Color is the Location model's value for this pitch at each spot, by count. The lines show where he actually throws it (inner 50%, outer 80% of pitches).</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="seg" role="group" aria-label="Pitch">
+        <button v-for="x in arsenal" :key="x.code" :aria-pressed="selected === x.code" @click="selected = x.code">{{ x.code }}</button>
+      </div>
+      <div class="seg" role="group" aria-label="Batter side">
+        <button :aria-pressed="bats === 'R'" @click="bats = 'R'">vs RHH</button>
+        <button :aria-pressed="bats === 'L'" @click="bats = 'L'">vs LHH</button>
+      </div>
+      <div class="seg" role="group" aria-label="Rendering">
+        <button :aria-pressed="heatMode === 'model'" @click="heatMode = 'model'">Model surface</button>
+        <button :aria-pressed="heatMode === 'raw'" @click="heatMode = 'raw'">Raw binned</button>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="heat-grid">
+      <div class="heat-cell" v-for="c in counts" :key="c.key">
+        <div style="display:flex;gap:8px;align-items:center"><b>{{ c.label }}</b><span class="small muted">{{ c.desc }}</span></div>
+        <canvas :ref="el => { if (el) heatRefs[c.key] = el }" width="260" height="300" :aria-label="'Location value, ' + c.label"></canvas>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;align-items:center">
+      <div class="scale"><span>Worse</span><span class="ramp"></span><span>Better (20–80)</span></div>
+      <p class="small muted" style="max-width:70ch">{{ heatMode === 'model'
+        ? 'Model surface: the Location model evaluated on a fine grid, then banded into 5-grade steps. No pitch outcomes are averaged, so there is no noise to smooth.'
+        : (realModels ? 'Raw binned (simulated): his pitch locations with outcomes drawn as noisily as real single pitches, averaged in 3-inch bins. This is the splotchy view the model surface replaces.' : 'Raw binned: average outcome of the pitches actually thrown in each 3-inch bin. This is the splotchy view the model surface replaces.') }}</p>
+    </div>
+    <p class="small" style="margin-top:10px"><b>Read:</b> {{ locRead }}</p>
+  </div>
+</section>
+
+<!-- ========== RESULTS VS MODEL ========== -->
+<section id="context">
+  <div class="sec-head">
+    <div><h2>Results vs. model<span class="tag" :class="tag('results').c" :title="tag('results').t">{{ tag('results').l }}</span></h2><p>Stuff and Location describe pitches. Some pitchers beat or trail those grades year after year. This section keeps that context next to the grades.</p></div>
+  </div>
+  <div class="context">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+        <h3>ERA: model-expected vs. actual</h3>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Pitching-model expected{{ realModels ? '' : ' (mock)' }}</span><span><i style="background:var(--g-hi)"></i>Actual ERA{{ live ? ' (real)' : ' (mock)' }}</span><span><i style="background:var(--muted)"></i>FIP</span></div>
+      </div>
+      <svg v-if="results.rows.length" viewBox="0 0 640 230" role="img" aria-label="Expected vs actual ERA by season" style="width:100%;height:auto;margin-top:8px">
+        <g v-for="t in eraTicks" :key="t">
+          <line x1="40" x2="630" :y1="ey(t)" :y2="ey(t)" stroke="var(--line)"></line>
+          <text x="32" :y="ey(t) + 3" text-anchor="end">{{ t.toFixed(1) }}</text>
+        </g>
+        <g v-for="(r, i) in results.rows" :key="r.season">
+          <line :x1="ex(i)" :x2="ex(i)" :y1="ey(r.expEra)" :y2="ey(r.era)" :stroke="r.era > r.expEra ? 'var(--g-lo)' : 'var(--g-hi)'" stroke-width="10" stroke-opacity=".18" stroke-linecap="round"></line>
+          <text :x="ex(i)" y="224" text-anchor="middle">{{ r.season }}</text>
+          <text :x="ex(i)" y="210" text-anchor="middle">{{ r.ipText }} IP</text>
+        </g>
+        <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" :points="results.rows.map((r, i) => ex(i) + ',' + ey(r.expEra)).join(' ')"></polyline>
+        <polyline fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3" :points="results.rows.map((r, i) => ex(i) + ',' + ey(r.fip)).join(' ')"></polyline>
+        <polyline fill="none" stroke="var(--g-hi)" stroke-width="2.5" :points="results.rows.map((r, i) => ex(i) + ',' + ey(r.era)).join(' ')"></polyline>
+        <g v-for="(r, i) in results.rows" :key="'d' + r.season">
+          <circle :cx="ex(i)" :cy="ey(r.expEra)" r="4" fill="var(--accent)"></circle>
+          <circle :cx="ex(i)" :cy="ey(r.era)" r="4" fill="var(--g-hi)"></circle>
+        </g>
+      </svg>
+      <div class="tablewrap" style="margin-top:8px">
+        <table>
+          <thead><tr><th>Season</th><th class="r">IP</th><th class="c">Grade{{ realModels ? '' : ' (mock)' }}</th><th class="r">Exp. ERA{{ realModels ? '' : ' (mock)' }}</th><th class="r">ERA</th><th class="r">FIP</th><th class="r">ERA − exp.</th></tr></thead>
+          <tbody>
+            <tr v-for="r in results.rows" :key="r.season" style="cursor:default">
+              <td class="num">{{ r.season }}</td><td class="r num">{{ r.ipText }}</td>
+              <td class="c"><span class="g" :style="gStyle(r.grade)">{{ show(r.grade) }}</span></td>
+              <td class="r num">{{ r.expEra.toFixed(2) }}</td><td class="r num">{{ r.era.toFixed(2) }}</td><td class="r num">{{ r.fip.toFixed(2) }}</td>
+              <td class="r num" :style="{ color: r.era - r.expEra > 0 ? 'var(--g-lo)' : 'var(--g-hi)' }">{{ signed(r.era - r.expEra, 2) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="callout"><b>{{ adjusted.label }}</b><span>{{ adjusted.long }}</span></div>
+      <h3 style="margin-top:16px">Traits the pitch models don't see<span class="tag" :class="tag('traits').c" :title="tag('traits').t">{{ tag('traits').l }}</span></h3>
+      <p class="small muted">Candidate explanations for a persistent gap, graded against qualified pitchers (300+ pitches). Each is a future model slot.</p>
+      <div class="drivers">
+        <div class="driver" v-for="d in drivers" :key="d.name">
+          <div><b>{{ d.name }}</b><span v-if="d.value" class="mono small muted"> · {{ d.value }}</span><div class="small muted">{{ d.note }}</div></div>
+          <span v-if="d.grade != null" class="g" :style="gStyle(d.grade)">{{ show(d.grade) }}</span><span v-else class="small muted">n/a</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TRANSACTIONS ========== -->
+<section id="transactions">
+  <div class="sec-head">
+    <div><h2>Availability &amp; transactions<span class="tag" :class="live ? 'real' : 'mock'" :title="live ? 'From the MLB Stats API' : 'Synthetic demo pitcher'">{{ live ? 'Real' : 'Mock' }}</span></h2>
+      <p>Injured list history, roster moves, and acquisitions. Check this before reading a grade change or planning a pitch change.</p></div>
+    <div class="seg" role="group" aria-label="Transaction type">
+      <button v-for="f in TX_FILTERS" :key="f.key" :aria-pressed="txFilter === f.key" @click="txFilter = f.key">{{ f.label }} <span class="muted mono small">{{ txCounts[f.key] }}</span></button>
+    </div>
+  </div>
+  <div class="tx">
+    <div class="panel tx-facts">
+      <div class="callout" v-if="txSummary.onIL" style="margin-bottom:4px"><b>On the injured list</b><span>{{ txSummary.onIL.text }}</span></div>
+      <div class="stat"><div class="eyebrow">IL stints, last 3 seasons</div><div class="v">{{ txSummary.stints3 }}</div></div>
+      <div class="stat"><div class="eyebrow">Days on IL, last 3 seasons</div><div class="v">{{ txSummary.days3 }}</div></div>
+      <div class="stat"><div class="eyebrow">Seasons with an option</div><div class="v">{{ txSummary.optionSeasons.length }}</div><div class="small muted">{{ txSummary.optionSeasons.join(', ') || 'None on record' }}. Count only; check with baseball ops for options remaining.</div></div>
+      <div class="stat"><div class="eyebrow">Teams on record</div><div class="v">{{ txSummary.orgs }}</div></div>
+      <div class="stat" v-if="txSummary.lastIL"><div class="eyebrow">Most recent IL stint</div><div class="small">{{ txSummary.lastIL }}</div></div>
+    </div>
+    <div class="panel" style="min-width:0">
+      <h3>Timeline</h3>
+      <p class="small muted">Bars are IL stints. Dots are other transactions. Hover for details.</p>
+      <svg v-if="txTimeline.years.length" viewBox="0 0 640 110" role="img" aria-label="Transaction timeline" style="width:100%;height:auto;margin-top:8px">
+        <g v-for="y in txTimeline.years" :key="y.y">
+          <line :x1="y.x" :x2="y.x" y1="8" y2="86" stroke="var(--line)"></line>
+          <text :x="y.x + 4" y="100">{{ y.y }}</text>
+        </g>
+        <text x="4" y="30">IL</text><text x="4" y="66">Moves</text>
+        <rect v-for="(st, i) in txTimeline.stints" :key="'s' + i" :x="st.x" y="18" :width="st.w" height="16" rx="3" fill="var(--warn)" opacity=".85"><title>{{ st.title }}</title></rect>
+        <circle v-for="(e, i) in txTimeline.events" :key="'e' + i" :cx="e.x" cy="60" r="5" :fill="e.color" stroke="var(--surface)" stroke-width="1.5"><title>{{ e.title }}</title></circle>
+      </svg>
+      <div class="legend" style="margin-top:4px">
+        <span v-for="c in TX_CATS" :key="c.key"><i :style="{ background: c.color, height: '8px', width: '8px', borderRadius: '50%' }"></i>{{ c.label }}</span>
+      </div>
+      <div class="tablewrap" style="margin-top:12px">
+        <table class="txtable">
+          <thead><tr><th>Date</th><th>Type</th><th>Transaction</th></tr></thead>
+          <tbody>
+            <tr v-for="t in txShown" :key="t.key" style="cursor:default">
+              <td class="num">{{ t.date }}</td>
+              <td><span class="pt"><i :style="{ background: t.cat.color }"></i>{{ t.cat.label }}</span></td>
+              <td class="txdesc">{{ t.description }}</td>
+            </tr>
+            <tr v-if="!txShown.length" style="cursor:default"><td colspan="3" class="muted">No transactions of this type on record.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="btn" style="margin-top:10px" v-if="txFiltered.length > 8" @click="txAll = !txAll">{{ txAll ? 'Show recent 8' : 'Show all ' + txFiltered.length }}</button>
+    </div>
+  </div>
+</section>
+
+<!-- ========== BIOMECHANICS ========== -->
+<section id="biomech">
+  <div class="sec-head">
+    <div><h2>Biomechanics · pitch comparison<span class="tag" :class="tag('bio').c" :title="tag('bio').t">{{ tag('bio').l }}</span></h2><p>{{ obpRef ? 'Mount point for the Baseball Sciences skeletal viewer, which would show his own deliveries. Until then it plays a real motion-captured reference delivery with the closest arm angle and the same throwing hand. The dashed arm shows the comparison pitch, rotated by his real arm-angle difference at 3× so it is visible.' : 'Mount point for the Baseball Sciences skeletal viewer. Their component receives two pitch IDs and the phase to show. This stand-in overlays the four-seam (solid) and the comparison pitch (dashed); arm-angle differences are drawn at 3× for visibility.' }}</p></div>
+    <div class="seg" role="group" aria-label="Compare pitch">
+      <button v-for="x in arsenal.filter(a => a.code !== fbCode)" :key="x.code" :aria-pressed="bioCode === x.code" @click="bioCode = x.code">{{ fbCode }} vs {{ x.code }}</button>
+    </div>
+  </div>
+  <div class="bio-grid">
+    <div class="panel" style="padding:0;overflow:hidden">
+      <div class="viewer">
+        <svg viewBox="0 0 400 300" role="img" aria-label="Delivery skeleton">
+          <line x1="0" x2="400" y1="270" y2="270" stroke="var(--line)" stroke-width="2"></line>
+          <line v-for="(b, bi) in bioView.bones" :key="bi" :x1="b[0]" :y1="b[1]" :x2="b[2]" :y2="b[3]" stroke="var(--ink)" :stroke-width="b[4]" stroke-linecap="round" :opacity="b[5]"></line>
+          <circle :cx="bioView.head[0]" :cy="bioView.head[1]" r="11" fill="var(--surface-2)" stroke="var(--ink)" stroke-width="3" opacity=".55"></circle>
+          <polyline fill="none" :stroke="bioColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" :points="bioView.arm2.map(q => q.join(',')).join(' ')"></polyline>
+          <g v-for="(bl, bi) in bioView.balls" :key="'ball' + bi">
+            <circle :cx="bl.x" :cy="bl.y" r="5" :fill="bl.color"></circle>
+            <text :x="bl.x + bl.dx" :y="bl.y + bl.dy" :text-anchor="bl.dx < 0 ? 'end' : 'start'" style="font-weight:600">{{ bl.label }}</text>
+          </g>
+          <text x="12" y="20">{{ phaseName }}</text>
+          <text x="388" y="20" text-anchor="end">{{ bioViewMode === 'side' ? 'side view' : "catcher's view" }} · {{ p.throws === 'L' ? 'LHP' : 'RHP' }}</text>
+        </svg>
+      </div>
+      <div class="scrub">
+        <button class="btn primary" @click="togglePlay">{{ playing ? 'Pause' : 'Play' }}</button>
+        <input id="phase-scrub" type="range" min="0" max="4" step="0.01" v-model.number="phase" aria-label="Delivery phase">
+        <div class="seg" role="group" aria-label="View"><button :aria-pressed="bioViewMode === 'side'" @click="bioViewMode = 'side'">Side</button><button :aria-pressed="bioViewMode === 'catcher'" @click="bioViewMode = 'catcher'">Catcher</button></div>
+      </div>
+      <div class="phase-labels"><span v-for="ph in PHASES" :key="ph">{{ ph }}</span></div>
+      <p class="small muted" style="padding:0 12px 12px" v-if="obpRef">Reference: {{ obpRef.throws }}HP, {{ obpRef.speed.toFixed(1) }} mph, arm angle {{ obpRef.arm_angle.toFixed(0) }}° (his: {{ fbArm != null ? fbArm.toFixed(0) + '°' : 'n/a' }}). Not his own motion. Data: <a href="https://github.com/drivelineresearch/openbiomechanics" target="_blank" rel="noopener">Driveline OpenBiomechanics Project</a>, CC BY-NC-SA 4.0, resampled and rotated.</p>
+    </div>
+    <div class="panel">
+      <h3>{{ fbCode }} vs {{ bioCode }} at release</h3>
+      <p class="small muted" style="margin-bottom:10px">Differences a hitter could read. Large gaps on a secondary pitch can tip it.{{ realBio ? ' Statcast averages for this season.' : '' }}</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Metric</th><th class="r">{{ fbCode }}</th><th class="r">{{ bioCode }}</th><th class="r">Δ</th></tr></thead>
+          <tbody>
+            <tr v-for="m in bioRows" :key="m.label" style="cursor:default">
+              <td>{{ m.label }}</td><td class="r num">{{ m.a }}</td><td class="r num">{{ m.b }}</td>
+              <td class="r num" :style="{ color: m.flag ? 'var(--warn)' : 'inherit', fontWeight: m.flag ? 600 : 400 }">{{ m.d }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout small" style="margin-top:12px" v-if="bioTell.flag"><b>Possible tell.</b><span>{{ bioTell.text }}</span></div>
+      <p class="small muted" style="margin-top:12px" v-else>{{ bioTell.text }}</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== MODEL REGISTRY ========== -->
+<section id="models">
+  <div class="sec-head">
+    <div><h2>Models on this page<span class="tag" :class="tag('models').c" :title="tag('models').t">{{ tag('models').l }}</span></h2><p>Every grade above is rendered from a registry entry. A new model ships by adding an entry and its outputs, then choosing a page slot.</p></div>
+  </div>
+  <div class="reg">
+    <div class="panel" v-for="m in registryCards" :key="m.key" :class="{ planned: m.status !== 'live' }">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+        <b>{{ m.label }}</b><span class="badge" :class="m.status === 'live' ? 'live' : ''">{{ m.status }}</span>
+      </div>
+      <div class="mono small muted">{{ m.model }}<span v-if="m.version"> · {{ m.version }}</span></div>
+      <p class="small">{{ m.desc }}</p>
+      <div class="small" v-if="m.credit"><a :href="m.url" target="_blank" rel="noopener">{{ m.credit }}</a></div>
+      <div class="small muted" v-if="m.note">{{ m.note }}</div>
+      <div class="small muted" v-else-if="m.stableN">Stable at ~{{ m.stableN }} pitches · 1 grade step = {{ m.sd.pitch / 2 }} pts (pitch), {{ m.sd.pitcher / 2 }} (pitcher)</div>
+      <div class="small muted" v-else>Slot: {{ m.slot }}</div>
+    </div>
+  </div>
+  <footer>
+    <p><b>About this mockup.</b> Bio, rosters, transactions, and season results load live from the MLB Stats API. Pitch data comes from Statcast (Baseball Savant), rebuilt daily by a GitHub Action. Stuff grades use <a href="https://github.com/tnestico/tjstuff_plus" target="_blank" rel="noopener">tjStuff+</a> by Thomas Nestico (MIT License), which also runs in your browser for Pitch Lab. Location and Pitching grades, the heatmap surfaces, and model-expected ERA come from this project's own models, fit on the same Statcast data (<a href="https://github.com/alowenthal10/wsh-pitching-problem-set/blob/claude/job-application-problem-312r2h/pipeline/location_model.py" target="_blank" rel="noopener">method and code</a>). Still mock and tagged: grip presets, the results-adjusted formula, the unmodeled-traits list, and biomechanics. Data © MLB Advanced Media, used for non-commercial purposes.</p>
+    <p>Grade conversion: grade = 50 + 10 × (plus − 100) ÷ SD, clamped to 20–80 and shown in 5-point steps. SDs are placeholders for the R&amp;D analyst to supply per model and level.</p>
+  </footer>
+</section>
+
+</main>

@@ -1,47 +1,46 @@
 # Summary: decisions, assumptions, and AI use
 
 ## What I built
-
-1. **Mockup** ([`mockup/index.html`](../mockup/index.html)): a working pitcher page in Vue 3, the Nationals' front-end framework. It loads the real bio and season results for MacKenzie Gore and the 40-man pitchers from the MLB Stats API. All model outputs (Stuff, Location, Pitching, Pitch Lab, heatmaps, biomechanics) are illustrative and generated for the mockup. If the API can't be reached, the page switches to a synthetic demo pitcher so no real name ever appears next to invented results.
-2. **PRD** ([`PRD.md`](PRD.md)): scope, requirements with priorities, technical design for Rails and Vue, handoffs between R&D, BPE, Baseball Systems, and Baseball Sciences, and a phased roadmap.
+- **A working site** (https://alowenthal10.github.io/wsh-pitching-problem-set/), with two kinds of page:
+  - **Leaderboard:** every qualified pitcher in the league, with the Nationals highlighted.
+  - **Pitcher pages:** one per pitcher, at a clean URL. All built in Vue 3 to match the club's stack.
+- **Real data and models throughout:**
+  - **Stuff:** Statcast scored with the open-source tjStuff+ model.
+  - **Location and Pitching:** my own models, built on the same Statcast data.
+  - **Live MLB Stats API:** bios, results and transactions.
+  - **Biomechanics:** Driveline's open motion-capture data.
+  - **Placeholder:** the formula that credits a results gap in the results-adjusted grade, which is R&D's call and labeled on the page.
+- **A PRD** ([PRD.md](PRD.md)) that uses the prototype's results to set requirements, handoffs and the roadmap for a Rails/Vue production build.
 
 ## Key decisions
-
-**The page leads with a verdict.** The GM asked for "opinionated." The biggest element on the page is the Pitching grade, with a role label (e.g. "No. 3 starter") and a written bottom line of three or four items. Each item links to its evidence. The order of sections below it follows decision value: arsenal, then the fix (Pitch Lab), then command, then results context, then biomechanics.
-
-**Grades only, with reliability on every grade.** I dropped percentiles entirely and kept the raw plus value on hover. A risk of 20–80 grades is that a 60 on 150 pitches looks the same as a 60 on 2,500. So every grade carries an uncertainty band, and grades below the model's stabilization point get a dashed outline. Using different stabilization points for each model (Stuff stabilizes much faster than Location) is what makes this useful. It tells you to trust the changeup's Stuff grade but not yet its Location grade.
-
-**Fix splotchy heatmaps at the source.** Heatmaps look splotchy because they average noisy pitch outcomes into bins. But we have a model, so we don't need to average anything. The page evaluates the Location model on a fine grid and bands it into 5-grade steps. The pitcher's actual tendencies are drawn on top as contours, so the gap between "where it's valuable" and "where he throws it" is the main thing you see. I show three counts side by side because the primer's Location model is count-specific, and that is where the picture changes most. A "raw binned" toggle shows the problem this solves.
-
-**Pitch Lab: what the Stuff model can answer, and what it can't.** Changing velocity and movement is plain inference on the existing Stuff model, so it's in scope for Phase 2. Grip and seam orientation are not Stuff model inputs. Answering those questions needs a seam-to-movement model, which belongs to Baseball Sciences and R&D. I designed the preset UI so it works now with hand-entered deltas and switches to model predictions later. I also added an "achievable" envelope, because a projection is only useful if the pitcher can actually throw that shape.
-
-**Over/under-performers get their own section.** This was the most important ambiguous note. Pitch-level models leave out things like extension, approach angle, sequencing, and tipping. The page shows several seasons of model-expected ERA against actual ERA and FIP. It flags a persistent gap, and it offers a results-adjusted grade that gives partial credit by innings and consistency. The candidate causes are listed as graded traits, and each one is a slot for a future model. The formula in the mockup is a placeholder, and R&D should own the real one.
-
-**Biomechanics: embed, don't rebuild.** Baseball Sciences already has a viewer. The PRD specifies a web-component contract (two pitch IDs plus a phase) and the page provides the slot. My stand-in links the viewer to a release-metrics table that flags a possible tell, which ties biomechanics back to a pitching decision.
-
-**Extensibility through a registry.** Every grade renders from a model registry entry (key, version, scale, SD, stabilization point). Outputs are stored in a long-format table. Adding a model means a registry row, data, and one line of config, with no new front-end code. The "Models on this page" section shows this, including a planned model and an open slot.
-
-**"Like Savant, but better."** I read this as: Savant describes, this page recommends. Concretely that means grades instead of percentiles, a written conclusion, count-based small multiples, reliability on every number, and one pitch selection that drives the whole page.
-
-## Deprioritized
-- Percentiles (GM preference). The API still returns raw values, so they could come back as a toggle.
-- Grip and seam-orientation modeling (Phase 3, owned by partners).
-- Skeletal viewer build (embed only). Hitter and team pages, live in-game views.
+- **Lead with the verdict.** The GM asked for opinionated, so the Pitching grade, a role label and a written bottom line come first. Evidence follows in order of decision value.
+- **Grades, never percentiles, always with reliability.** A 60 on 150 pitches shouldn't look like a 60 on 2,500. Every grade shows an uncertainty band, and small samples are flagged.
+- **Fix splotchy heatmaps at the source.** Draw the Location model's surface instead of averaging noisy outcomes, with the smoothing width chosen by out-of-sample fit.
+- **Validate everything out of sample.** Two results shaped the product:
+  - Split each season into odd- and even-day games: a pitcher's model grades from one half predict his run value in the other half better than his actual results from the same games do (r 0.26–0.29 vs. 0.13–0.23). That justifies the model-first layout.
+  - Location is a stable skill but barely predicts future run value. A full-weight blend made the Pitching model worse, so its weight is now chosen out of sample. The PRD makes this a requirement for every model.
+- **Pitch Lab answers what the Stuff model can.** Movement and velocity changes run the real model. Grip and seam questions need a model that doesn't exist yet, so the presets are league references, labeled as hypotheses.
+- **Keep results next to grades.** Habitual over- and under-performers get multi-season context and graded traits the models miss.
+- **Built for baseball ops too.** A transaction log (IL stints, options, trades), plus a searchable leaderboard so any pitcher is two clicks away.
+- **Embed, don't rebuild.** Biomechanics is a slot for Baseball Sciences' viewer. New models plug into a registry with no new front-end code.
 
 ## Assumptions
-- The internal models work like the FanGraphs primer describes. Stuff uses physical traits and differences from the primary fastball. Location is specific to pitch type, count, and platoon. Pitching combines both.
-- Grade SDs (Stuff 10 at pitcher level and 18 at pitch level, Location 4 and 8, Pitching 5 and 9) and stabilization points (about 80, 400, and 250 pitches) are placeholders for R&D to replace.
-- Model-expected ERA is a linear map from Pitching+. R&D would choose the real estimator.
-- The Location model doesn't depend on the pitcher, so surfaces can be computed once per model version. This is flagged as an open question in the PRD.
-- Rails is the only API the browser calls in production. MLB Stats API data is pulled on a schedule and cached, not called live.
+- The club's internal models work like the FanGraphs primer describes. The public models here stand in for them.
+- Grade spread follows tjStuff+'s method (per pitch type, percentile-based), and expected ERA = league ERA + 9 × model runs above average ÷ IP. Both are proposals for R&D to confirm.
+- Production uses internal data behind club auth. The public sources here are licensed for non-commercial use only.
 
 ## How I used AI
+I used Claude (Anthropic's Claude Code agent) as my engineering partner, and I am responsible for the result.
 
-I used Claude (Anthropic's Claude Code agent) throughout, and I am responsible for the result.
-
-- **Reading and planning:** Claude parsed the problem set, proposed how to prioritize each stakeholder note, and drafted the page structure. I reviewed and adjusted the priorities.
-- **Code:** Claude wrote the mockup: the Vue app, canvas heatmap and Stuff-surface rendering, the synthetic models that stand in for the real ones, and the MLB Stats API adapter with a fallback. It tested the page in headless Chromium at desktop and phone widths, in light and dark themes, and against a mocked API response for the live-data path.
-- **PRD and this summary:** Claude drafted both from the decisions above. I edited them for accuracy and tone.
-- **What I checked myself:** the baseball logic (grade conventions, role labels, which pitches and counts matter), whether the synthetic numbers are plausible, and that nothing presents invented numbers as real model output.
-
-<!-- Edit the "How I used AI" section so it reflects exactly what you did versus what the AI did. -->
+- **I directed:**
+  - the product decisions and scope;
+  - moving from mock data to real data and models;
+  - the MLB data sources;
+  - the leaderboard, team filtering and Nationals focus;
+  - presentation details like team logos.
+- **I reviewed** each version on the live site.
+- **Claude:**
+  - proposed the page structure and priorities;
+  - wrote the code (the Vue app, the data pipeline, the Location and Pitching models, the validation checks);
+  - drafted this summary and the PRD.
+- **Claude tested** each change in a headless browser and against synthetic data before deploying. It also caught and fixed modeling problems the validation surfaced, such as the Location over-weighting and the seam-effect calibration.
